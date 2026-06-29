@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from typing import Any
 
 import structlog
 
@@ -22,17 +23,18 @@ def configure_logging() -> None:
         level=log_level,
     )
 
-    shared_processors: list = [
+    shared_processors: list[Any] = [
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
     ]
 
-    if settings.debug:
-        renderer = structlog.dev.ConsoleRenderer()
-    else:
-        renderer = structlog.processors.JSONRenderer()
+    renderer: Any = (
+        structlog.dev.ConsoleRenderer()
+        if settings.debug
+        else structlog.processors.JSONRenderer()
+    )
 
     structlog.configure(
         processors=[*shared_processors, renderer],

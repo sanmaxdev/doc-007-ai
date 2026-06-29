@@ -7,7 +7,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-api_router = APIRouter()
+from doc007.api.v1.routers import auth, workspaces
 
-# Phase 1+: auth, workspaces, members, documents, chat, search, admin
-# api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router = APIRouter()
+api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(workspaces.router, prefix="/workspaces", tags=["workspaces"])
+
+# Phase 2+: documents, chat, search, admin

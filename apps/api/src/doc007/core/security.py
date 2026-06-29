@@ -1,32 +1,37 @@
 """Password hashing and JWT helpers.
 
-Access + refresh tokens (HS256). Passwords hashed with bcrypt via passlib.
-Used by the auth service in Phase 1.
+Access + refresh tokens (HS256). Passwords hashed with argon2id.
+Used by the auth service.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from argon2 import PasswordHasher
+from argon2.exceptions import Argon2Error
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from doc007.core.config import settings
 
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# argon2id (the default) — modern, no 72-byte limit, no unmaintained deps.
+_ph = PasswordHasher()
 
 
 def hash_password(password: str) -> str:
-    return _pwd_context.hash(password)
+    return _ph.hash(password)
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return _pwd_context.verify(plain, hashed)
+    try:
+        return _ph.verify(hashed, plain)
+    except Argon2Error:
+        return False
 
 
 def _create_token(subject: str, expires_delta: timedelta, token_type: str) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload: dict[str, Any] = {
         "sub": subject,
         "type": token_type,

@@ -7,13 +7,15 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from doc007 import __version__
 from doc007.api.v1.router import api_router
 from doc007.api.v1.routers import health
 from doc007.core.config import settings
+from doc007.core.exceptions import AppError
 from doc007.core.logging import configure_logging, get_logger
 
 log = get_logger(__name__)
@@ -44,6 +46,13 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.exception_handler(AppError)
+    async def _app_error_handler(_: Request, exc: AppError) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.message, "code": exc.code},
+        )
 
     # Root-level probes (used by Docker/k8s healthchecks)
     app.include_router(health.router)
