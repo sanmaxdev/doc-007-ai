@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 
 from fastapi import Depends, Path
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -13,7 +14,9 @@ from doc007.core.security import decode_token
 from doc007.db.base import get_db
 from doc007.db.models.user import User
 from doc007.db.models.workspace import WorkspaceMember, WorkspaceRole
+from doc007.rag.vector_store import VectorStore
 from doc007.services import auth_service, workspace_service
+from doc007.storage.base import Storage
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -67,3 +70,27 @@ def require_role(*roles: WorkspaceRole):
         return membership
 
     return _checker
+
+
+# ---- Injected infrastructure (overridable in tests) ----------------------
+
+
+def get_storage_dep() -> Storage:
+    from doc007.storage import get_storage
+
+    return get_storage()
+
+
+def get_vector_store_dep() -> VectorStore:
+    from doc007.rag.vector_store import get_vector_store
+
+    return get_vector_store()
+
+
+def get_enqueue_ingestion() -> Callable[[uuid.UUID], None]:
+    def _enqueue(document_id: uuid.UUID) -> None:
+        from doc007.workers.tasks import process_document
+
+        process_document.delay(str(document_id))
+
+    return _enqueue

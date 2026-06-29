@@ -67,3 +67,35 @@ async def register_and_login(
     )
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+async def session(db_engine) -> AsyncGenerator[AsyncSession, None]:
+    maker = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
+    async with maker() as s:
+        yield s
+
+
+class FakeVectorStore:
+    """In-memory stand-in for QdrantVectorStore used in tests."""
+
+    def __init__(self) -> None:
+        self.points: dict = {}
+
+    async def ensure_collection(self) -> None:
+        return None
+
+    async def upsert(self, points) -> None:
+        for p in points:
+            self.points[p.id] = p
+
+    async def delete_document(self, workspace_id, document_id) -> None:
+        wid, did = str(workspace_id), str(document_id)
+        self.points = {
+            k: v
+            for k, v in self.points.items()
+            if not (v.payload.get("workspace_id") == wid and v.payload.get("document_id") == did)
+        }
+
+    async def search(self, *, workspace_id, vector, top_k, document_ids=None) -> list:
+        return []

@@ -16,6 +16,11 @@ class AppError(Exception):
         self.message = message
 
 
+class ValidationError(AppError):
+    status_code = 400
+    code = "invalid_request"
+
+
 class ConflictError(AppError):
     status_code = 409
     code = "conflict"

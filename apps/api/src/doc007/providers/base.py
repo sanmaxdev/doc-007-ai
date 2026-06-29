@@ -39,6 +39,11 @@ class EmbeddingProvider(ABC):
 
     @property
     @abstractmethod
+    def name(self) -> str:
+        """Model identifier stored alongside each chunk (for traceability)."""
+
+    @property
+    @abstractmethod
     def dimension(self) -> int: ...
 
     @abstractmethod
