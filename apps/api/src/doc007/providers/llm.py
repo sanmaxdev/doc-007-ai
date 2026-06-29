@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from doc007.core.config import settings
 from doc007.core.logging import get_logger
 from doc007.providers.base import ChatMessage, LLMProvider, LLMResult
@@ -59,9 +61,10 @@ class OpenRouterLLMProvider(LLMProvider):
 
         @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=15))
         async def _call() -> LLMResult:
+            payload: list[Any] = [{"role": m.role, "content": m.content} for m in messages]
             resp = await self._client.chat.completions.create(
                 model=self._model,
-                messages=[{"role": m.role, "content": m.content} for m in messages],
+                messages=payload,
                 temperature=kwargs.get("temperature", 0.1),
             )
             usage = resp.usage
