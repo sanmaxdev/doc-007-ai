@@ -1,4 +1,8 @@
 import { FileText, MessageSquareQuote, ShieldCheck, Sparkles } from "lucide-react";
+import Link from "next/link";
+
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const features = [
   { icon: FileText, label: "Upload PDF, TXT & Markdown" },
@@ -38,9 +42,21 @@ export default function Home() {
           ))}
         </div>
 
-        <p className="mt-10 text-sm text-muted-foreground">
-          API:{" "}
-          <a className="text-primary underline-offset-4 hover:underline" href="http://localhost:8000/docs">
+        <div className="mt-10 flex items-center justify-center gap-3">
+          <Link href="/register" className={cn(buttonVariants({ size: "lg" }))}>
+            Get started
+          </Link>
+          <Link href="/login" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
+            Sign in
+          </Link>
+        </div>
+
+        <p className="mt-6 text-sm text-muted-foreground">
+          API docs:{" "}
+          <a
+            className="text-primary underline-offset-4 hover:underline"
+            href="http://localhost:8000/docs"
+          >
             localhost:8000/docs
           </a>
         </p>
