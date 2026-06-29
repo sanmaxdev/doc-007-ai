@@ -4,6 +4,12 @@ Every model module is imported here so `Base.metadata` is fully populated
 for Alembic autogenerate and for `create_all` in tests.
 """
 
+from doc007.db.models.conversation import (
+    Citation,
+    Conversation,
+    Message,
+    MessageRole,
+)
 from doc007.db.models.document import Document, DocumentChunk, DocumentStatus
 from doc007.db.models.user import User
 from doc007.db.models.workspace import (
@@ -22,4 +28,8 @@ __all__ = [
     "Document",
     "DocumentChunk",
     "DocumentStatus",
+    "Conversation",
+    "Message",
+    "MessageRole",
+    "Citation",
 ]

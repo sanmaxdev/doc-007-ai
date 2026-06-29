@@ -94,3 +94,15 @@ def get_enqueue_ingestion() -> Callable[[uuid.UUID], None]:
         process_document.delay(str(document_id))
 
     return _enqueue
+
+
+def get_embedder_dep():
+    from doc007.providers.embeddings import get_embedding_provider
+
+    return get_embedding_provider()
+
+
+def get_llm_dep():
+    from doc007.providers.llm import get_llm_provider
+
+    return get_llm_provider()

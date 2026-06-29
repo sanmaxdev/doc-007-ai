@@ -98,4 +98,15 @@ class FakeVectorStore:
         }
 
     async def search(self, *, workspace_id, vector, top_k, document_ids=None) -> list:
-        return []
+        from doc007.rag.vector_store import SearchHit
+
+        wid = str(workspace_id)
+        dids = {str(d) for d in document_ids} if document_ids else None
+        hits = []
+        for p in self.points.values():
+            if p.payload.get("workspace_id") != wid:
+                continue
+            if dids is not None and p.payload.get("document_id") not in dids:
+                continue
+            hits.append(SearchHit(chunk_id=p.payload["chunk_id"], score=0.9, payload=p.payload))
+        return hits[:top_k]

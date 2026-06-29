@@ -30,6 +30,10 @@ class LLMResult:
 class LLMProvider(ABC):
     """Text generation provider (OpenRouter)."""
 
+    @property
+    @abstractmethod
+    def name(self) -> str: ...
+
     @abstractmethod
     async def complete(self, messages: list[ChatMessage], **kwargs) -> LLMResult: ...
 
