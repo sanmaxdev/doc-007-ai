@@ -1,4 +1,4 @@
-import type { Member, Tokens, User, Workspace } from "@/lib/types";
+import type { Chunk, DocumentItem, Member, Tokens, User, Workspace } from "@/lib/types";
 import { useAuthStore } from "@/stores/auth";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
@@ -18,6 +18,7 @@ type RequestOptions = {
   method?: string;
   body?: unknown;
   auth?: boolean;
+  formData?: FormData;
 };
 
 async function tryRefresh(): Promise<boolean> {
@@ -41,8 +42,10 @@ async function tryRefresh(): Promise<boolean> {
 }
 
 async function request<T>(path: string, opts: RequestOptions = {}, retry = true): Promise<T> {
-  const { method = "GET", body, auth = true } = opts;
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const { method = "GET", body, auth = true, formData } = opts;
+  const isForm = formData !== undefined;
+  const headers: Record<string, string> = {};
+  if (!isForm) headers["Content-Type"] = "application/json";
 
   if (auth) {
     const token = useAuthStore.getState().accessToken;
@@ -52,7 +55,7 @@ async function request<T>(path: string, opts: RequestOptions = {}, retry = true)
   const res = await fetch(`${BASE}${PREFIX}${path}`, {
     method,
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: isForm ? formData : body !== undefined ? JSON.stringify(body) : undefined,
   });
 
   // One transparent refresh-and-retry on an expired access token.
@@ -89,4 +92,23 @@ export const api = {
     request<Workspace>("/workspaces", { method: "POST", body: { name, description } }),
   getWorkspace: (id: string) => request<Workspace>(`/workspaces/${id}`),
   listMembers: (id: string) => request<Member[]>(`/workspaces/${id}/members`),
+
+  listDocuments: (workspaceId: string) =>
+    request<DocumentItem[]>(`/workspaces/${workspaceId}/documents`),
+  uploadDocument: (workspaceId: string, file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return request<DocumentItem>(`/workspaces/${workspaceId}/documents`, {
+      method: "POST",
+      formData: fd,
+    });
+  },
+  deleteDocument: (workspaceId: string, id: string) =>
+    request<void>(`/workspaces/${workspaceId}/documents/${id}`, { method: "DELETE" }),
+  reprocessDocument: (workspaceId: string, id: string) =>
+    request<DocumentItem>(`/workspaces/${workspaceId}/documents/${id}/reprocess`, {
+      method: "POST",
+    }),
+  getChunks: (workspaceId: string, id: string) =>
+    request<Chunk[]>(`/workspaces/${workspaceId}/documents/${id}/chunks`),
 };

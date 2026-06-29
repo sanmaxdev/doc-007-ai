@@ -32,3 +32,40 @@ export type Tokens = {
   refresh_token: string;
   token_type: string;
 };
+
+export type DocumentStatus =
+  | "uploaded"
+  | "extracting"
+  | "chunking"
+  | "embedding"
+  | "ready"
+  | "failed";
+
+export type DocumentItem = {
+  id: string;
+  original_filename: string;
+  mime_type: string;
+  file_size_bytes: number;
+  page_count: number | null;
+  chunk_count: number;
+  status: DocumentStatus;
+  error_message: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+  processed_at: string | null;
+};
+
+export type Chunk = {
+  id: string;
+  chunk_index: number;
+  page_number: number | null;
+  token_count: number;
+  content: string;
+};
+
+export const PROCESSING_STATUSES: DocumentStatus[] = [
+  "uploaded",
+  "extracting",
+  "chunking",
+  "embedding",
+];
