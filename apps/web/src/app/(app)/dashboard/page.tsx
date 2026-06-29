@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useConversations } from "@/hooks/use-chat";
 import { useDocuments } from "@/hooks/use-documents";
 import { useCreateWorkspace, useMembers, useWorkspaces } from "@/hooks/use-workspaces";
 import { useWorkspaceStore } from "@/stores/workspace";
@@ -76,6 +77,7 @@ export default function DashboardPage() {
   const active = workspaces?.find((w) => w.id === activeId) ?? workspaces?.[0];
   const { data: members } = useMembers(active?.id ?? null);
   const { data: documents } = useDocuments(active?.id ?? null);
+  const { data: conversations } = useConversations(active?.id ?? null);
 
   if (isLoading) {
     return <p className="text-muted-foreground">Loading…</p>;
@@ -100,7 +102,10 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Documents" value={documents ? String(documents.length) : "—"} />
-        <StatCard label="Questions" value="0" hint="Arrives in Phase 3" />
+        <StatCard
+          label="Conversations"
+          value={conversations ? String(conversations.length) : "—"}
+        />
         <StatCard label="Members" value={members ? String(members.length) : "—"} />
       </div>
 

@@ -69,3 +69,41 @@ export const PROCESSING_STATUSES: DocumentStatus[] = [
   "chunking",
   "embedding",
 ];
+
+export type Citation = {
+  index: number;
+  document_id: string | null;
+  document_filename: string;
+  page_number: number | null;
+  snippet: string;
+  score: number;
+};
+
+export type ChatMessage = {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  created_at: string;
+  citations: Citation[];
+};
+
+export type Conversation = {
+  id: string;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ConversationDetail = {
+  conversation: Conversation;
+  messages: ChatMessage[];
+};
+
+export type AskResponse = {
+  conversation_id: string;
+  message_id: string;
+  answer: string;
+  citations: Citation[];
+  coverage: string;
+  not_found: boolean;
+};

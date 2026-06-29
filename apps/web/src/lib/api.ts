@@ -1,4 +1,14 @@
-import type { Chunk, DocumentItem, Member, Tokens, User, Workspace } from "@/lib/types";
+import type {
+  AskResponse,
+  Chunk,
+  Conversation,
+  ConversationDetail,
+  DocumentItem,
+  Member,
+  Tokens,
+  User,
+  Workspace,
+} from "@/lib/types";
 import { useAuthStore } from "@/stores/auth";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
@@ -111,4 +121,19 @@ export const api = {
     }),
   getChunks: (workspaceId: string, id: string) =>
     request<Chunk[]>(`/workspaces/${workspaceId}/documents/${id}/chunks`),
+
+  listConversations: (workspaceId: string) =>
+    request<Conversation[]>(`/workspaces/${workspaceId}/chat/conversations`),
+  getConversation: (workspaceId: string, conversationId: string) =>
+    request<ConversationDetail>(
+      `/workspaces/${workspaceId}/chat/conversations/${conversationId}`,
+    ),
+  deleteConversation: (workspaceId: string, conversationId: string) =>
+    request<void>(`/workspaces/${workspaceId}/chat/conversations/${conversationId}`, {
+      method: "DELETE",
+    }),
+  ask: (
+    workspaceId: string,
+    payload: { question: string; conversation_id?: string; document_ids?: string[] },
+  ) => request<AskResponse>(`/workspaces/${workspaceId}/chat/ask`, { method: "POST", body: payload }),
 };
