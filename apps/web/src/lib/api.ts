@@ -1,4 +1,6 @@
 import type {
+  ApiKey,
+  ApiKeyCreated,
   AskResponse,
   AuditLog,
   Chunk,
@@ -14,6 +16,7 @@ import type {
   Role,
   Tag,
   Tokens,
+  UsageSummary,
   User,
   Workspace,
 } from "@/lib/types";
@@ -109,10 +112,20 @@ export const api = {
   createWorkspace: (name: string, description?: string) =>
     request<Workspace>("/workspaces", { method: "POST", body: { name, description } }),
   getWorkspace: (id: string) => request<Workspace>(`/workspaces/${id}`),
-  updateWorkspace: (id: string, data: { name?: string; description?: string }) =>
-    request<Workspace>(`/workspaces/${id}`, { method: "PATCH", body: data }),
+  updateWorkspace: (
+    id: string,
+    data: { name?: string; description?: string; monthly_question_limit?: number | null },
+  ) => request<Workspace>(`/workspaces/${id}`, { method: "PATCH", body: data }),
   deleteWorkspace: (id: string) =>
     request<void>(`/workspaces/${id}`, { method: "DELETE" }),
+
+  listApiKeys: (id: string) => request<ApiKey[]>(`/workspaces/${id}/api-keys`),
+  createApiKey: (id: string, name: string) =>
+    request<ApiKeyCreated>(`/workspaces/${id}/api-keys`, { method: "POST", body: { name } }),
+  revokeApiKey: (id: string, keyId: string) =>
+    request<void>(`/workspaces/${id}/api-keys/${keyId}`, { method: "DELETE" }),
+
+  getUsage: (id: string) => request<UsageSummary>(`/workspaces/${id}/usage`),
 
   listMembers: (id: string) => request<Member[]>(`/workspaces/${id}/members`),
   changeMemberRole: (id: string, userId: string, role: Role) =>

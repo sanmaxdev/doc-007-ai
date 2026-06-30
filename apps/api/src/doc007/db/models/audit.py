@@ -29,6 +29,8 @@ class AuditAction(enum.StrEnum):
     workspace_deleted = "workspace.deleted"
     tag_added = "tag.added"
     tag_removed = "tag.removed"
+    apikey_created = "apikey.created"
+    apikey_revoked = "apikey.revoked"
 
 
 _action_enum = Enum(AuditAction, native_enum=False, length=40, name="audit_action")

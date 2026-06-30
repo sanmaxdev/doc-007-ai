@@ -39,3 +39,13 @@ class ForbiddenError(AppError):
 class NotFoundError(AppError):
     status_code = 404
     code = "not_found"
+
+
+class RateLimitedError(AppError):
+    status_code = 429
+    code = "rate_limited"
+
+
+class QuotaExceededError(AppError):
+    status_code = 429
+    code = "quota_exceeded"

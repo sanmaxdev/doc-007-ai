@@ -38,9 +38,20 @@ export function useCreateWorkspace() {
 export function useUpdateWorkspace(workspaceId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name?: string; description?: string }) =>
-      api.updateWorkspace(workspaceId as string, data),
+    mutationFn: (data: {
+      name?: string;
+      description?: string;
+      monthly_question_limit?: number | null;
+    }) => api.updateWorkspace(workspaceId as string, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["workspaces"] }),
+  });
+}
+
+export function useUsage(workspaceId: string | null) {
+  return useQuery({
+    queryKey: ["usage", workspaceId],
+    queryFn: () => api.getUsage(workspaceId as string),
+    enabled: Boolean(workspaceId),
   });
 }
 

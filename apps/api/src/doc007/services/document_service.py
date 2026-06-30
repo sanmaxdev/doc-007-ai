@@ -47,7 +47,7 @@ async def create_document(
     db: AsyncSession,
     *,
     workspace_id: uuid.UUID,
-    user_id: uuid.UUID,
+    user_id: uuid.UUID | None,
     original_filename: str,
     content_type: str,
     data: bytes,

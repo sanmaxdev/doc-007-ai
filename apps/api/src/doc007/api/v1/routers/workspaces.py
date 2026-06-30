@@ -82,9 +82,16 @@ async def update_workspace(
     ws = await workspace_service.get_workspace(db, membership.workspace_id)
     if ws is None:
         raise NotFoundError("Workspace not found.")
-    ws = await workspace_service.update_workspace(
-        db, ws, name=data.name, description=data.description
-    )
+    # Only apply fields the client actually sent (PATCH semantics).
+    fields = data.model_fields_set
+    kwargs: dict = {}
+    if "name" in fields:
+        kwargs["name"] = data.name
+    if "description" in fields:
+        kwargs["description"] = data.description
+    if "monthly_question_limit" in fields:
+        kwargs["monthly_question_limit"] = data.monthly_question_limit
+    ws = await workspace_service.update_workspace(db, ws, **kwargs)
     await audit_service.record(
         db,
         workspace_id=ws.id,

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BarChart3,
   FileText,
   FlaskConical,
   LayoutDashboard,
@@ -18,6 +19,7 @@ const NAV = [
   { href: "/documents", label: "Documents", icon: FileText, soon: false },
   { href: "/chat", label: "Chat", icon: MessagesSquare, soon: false },
   { href: "/debug", label: "Retrieval", icon: FlaskConical, soon: false },
+  { href: "/usage", label: "Usage", icon: BarChart3, soon: false },
   { href: "/members", label: "Members", icon: Users, soon: false },
   { href: "/settings", label: "Settings", icon: Settings, soon: false },
 ];

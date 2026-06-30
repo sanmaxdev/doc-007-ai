@@ -107,17 +107,24 @@ async def list_members(
 # ---- Workspace settings --------------------------------------------------
 
 
+_UNSET: object = object()
+
+
 async def update_workspace(
     db: AsyncSession,
     workspace: Workspace,
     *,
     name: str | None = None,
     description: str | None = None,
+    monthly_question_limit: object = _UNSET,
 ) -> Workspace:
     if name is not None:
         workspace.name = name.strip()
     if description is not None:
         workspace.description = description.strip() or None
+    if monthly_question_limit is not _UNSET:
+        # Pass-through; None means "unlimited".
+        workspace.monthly_question_limit = monthly_question_limit  # type: ignore[assignment]
     await db.commit()
     await db.refresh(workspace)
     return workspace

@@ -8,11 +8,13 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from doc007.api.v1.routers import (
+    apikeys,
     auth,
     chat,
     documents,
     invitations,
     search,
+    usage,
     workspaces,
 )
 
@@ -34,4 +36,14 @@ api_router.include_router(
     search.router,
     prefix="/workspaces/{workspace_id}/search",
     tags=["search"],
+)
+api_router.include_router(
+    apikeys.router,
+    prefix="/workspaces/{workspace_id}/api-keys",
+    tags=["api-keys"],
+)
+api_router.include_router(
+    usage.router,
+    prefix="/workspaces/{workspace_id}/usage",
+    tags=["usage"],
 )

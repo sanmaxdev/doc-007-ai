@@ -11,9 +11,12 @@ from sqlalchemy.orm import selectinload
 from doc007.core.exceptions import NotFoundError, ValidationError
 from doc007.db.models.conversation import Citation, Conversation, Message, MessageRole
 from doc007.db.models.feedback import Feedback, FeedbackRating
+from doc007.db.models.usage import UsageEventType
+from doc007.db.models.workspace import Workspace
 from doc007.providers.base import ChatMessage, EmbeddingProvider, LLMProvider
 from doc007.rag.answer import AnswerResult, generate_answer
 from doc007.rag.vector_store import VectorStore
+from doc007.services import usage_service
 
 _HISTORY_LIMIT = 6
 
@@ -131,7 +134,13 @@ async def ask(
     vector_store: VectorStore,
     conversation_id: uuid.UUID | None = None,
     document_ids: list[uuid.UUID] | None = None,
+    source: str = "app",
 ) -> tuple[Conversation, Message, AnswerResult]:
+    # Enforce the workspace's monthly question quota before spending any tokens.
+    workspace = await db.get(Workspace, workspace_id)
+    if workspace is not None:
+        await usage_service.check_question_quota(db, workspace)
+
     if conversation_id is not None:
         conv = await get_conversation(db, workspace_id, conversation_id, user_id)
         if conv is None:
@@ -193,4 +202,14 @@ async def ask(
 
     await db.commit()
     await db.refresh(assistant)
+
+    await usage_service.record(
+        db,
+        workspace_id=workspace_id,
+        user_id=user_id,
+        event_type=UsageEventType.question,
+        source=source,
+        tokens_in=result.tokens_prompt,
+        tokens_out=result.tokens_completion,
+    )
     return conv, assistant, result

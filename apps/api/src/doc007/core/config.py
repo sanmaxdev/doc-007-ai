@@ -71,6 +71,14 @@ class Settings(BaseSettings):
     storage_local_path: str = "/data/uploads"
     max_upload_mb: int = 25
 
+    # ---- Public API ----
+    api_key_prefix: str = "doc7"
+    public_rate_limit: int = 60  # requests allowed per window, per API key
+    public_rate_window_seconds: int = 60
+    # Rough cost estimate per 1k tokens (USD) for the usage ledger.
+    cost_per_1k_input_tokens: float = 0.00015
+    cost_per_1k_output_tokens: float = 0.0006
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

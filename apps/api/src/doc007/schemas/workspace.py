@@ -22,6 +22,7 @@ class WorkspaceOut(BaseModel):
     name: str
     slug: str
     description: str | None
+    monthly_question_limit: int | None = None
     created_at: datetime
     # The requesting user's role in this workspace (populated by the service).
     role: WorkspaceRole | None = None
@@ -30,6 +31,8 @@ class WorkspaceOut(BaseModel):
 class WorkspaceUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
+    # null = unlimited. Only applied when explicitly present in the request.
+    monthly_question_limit: int | None = Field(default=None, ge=0)
 
 
 class MemberOut(BaseModel):

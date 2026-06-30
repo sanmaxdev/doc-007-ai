@@ -14,8 +14,40 @@ export type Workspace = {
   name: string;
   slug: string;
   description: string | null;
+  monthly_question_limit: number | null;
   created_at: string;
   role: Role | null;
+};
+
+export type ApiKey = {
+  id: string;
+  name: string;
+  key_prefix: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+};
+
+export type ApiKeyCreated = {
+  api_key: ApiKey;
+  key: string;
+};
+
+export type UsageByDay = {
+  date: string;
+  count: number;
+};
+
+export type UsageSummary = {
+  questions_this_period: number;
+  monthly_question_limit: number | null;
+  total_documents: number;
+  total_chunks: number;
+  storage_used_bytes: number;
+  total_tokens_in: number;
+  total_tokens_out: number;
+  total_cost_estimate: number;
+  questions_by_day: UsageByDay[];
 };
 
 export type Member = {

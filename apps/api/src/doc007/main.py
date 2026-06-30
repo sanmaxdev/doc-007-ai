@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 
 from doc007 import __version__
 from doc007.api.v1.router import api_router
-from doc007.api.v1.routers import health
+from doc007.api.v1.routers import health, public
 from doc007.core.config import settings
 from doc007.core.exceptions import AppError
 from doc007.core.logging import configure_logging, get_logger
@@ -57,8 +57,11 @@ def create_app() -> FastAPI:
     # Root-level probes (used by Docker/k8s healthchecks)
     app.include_router(health.router)
 
-    # Versioned business API
+    # Versioned business API (JWT-authenticated)
     app.include_router(api_router, prefix=settings.api_v1_prefix)
+
+    # Public API (API-key authenticated, rate-limited)
+    app.include_router(public.router, prefix="/api/public/v1", tags=["public"])
 
     @app.get("/", include_in_schema=False)
     async def root() -> dict:
