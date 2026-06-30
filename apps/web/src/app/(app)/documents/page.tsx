@@ -4,11 +4,13 @@ import { FileText, Plus, RefreshCw, Search, Trash2, Upload, X } from "lucide-rea
 import Link from "next/link";
 import { useState } from "react";
 
+import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/documents/status-badge";
 import { UploadDialog } from "@/components/documents/upload-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   useAddTag,
   useDeleteDocument,
@@ -126,18 +128,17 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Documents</h1>
-          <p className="text-sm text-muted-foreground">
-            Upload the sources for your knowledge base.
-          </p>
-        </div>
-        <Button onClick={() => setUploadOpen(true)}>
-          <Upload className="h-4 w-4" />
-          Upload
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow="Knowledge base"
+        title="Documents"
+        description="Upload the sources DOC-007-AI grounds its answers in. Every file is chunked, embedded, and citable."
+        actions={
+          <Button onClick={() => setUploadOpen(true)}>
+            <Upload className="h-4 w-4" />
+            Upload
+          </Button>
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1" style={{ minWidth: 220 }}>
@@ -176,7 +177,17 @@ export default function DocumentsPage() {
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Loading…</p>
+        <Card className="divide-y divide-border overflow-hidden">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+              <Skeleton className="h-4 w-4 rounded" />
+              <Skeleton className="h-4 flex-1" />
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-4 w-10" />
+              <Skeleton className="h-4 w-12" />
+            </div>
+          ))}
+        </Card>
       ) : !docs || docs.length === 0 ? (
         <Card className="flex flex-col items-center gap-3 p-12 text-center">
           <FileText className="h-10 w-10 text-muted-foreground" />
@@ -198,7 +209,7 @@ export default function DocumentsPage() {
       ) : (
         <Card className="overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <thead className="border-b border-border bg-secondary/40 text-left font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Status</th>
@@ -211,7 +222,10 @@ export default function DocumentsPage() {
             </thead>
             <tbody>
               {docs.map((d) => (
-                <tr key={d.id} className="border-b border-border last:border-0">
+                <tr
+                  key={d.id}
+                  className="border-b border-border transition-colors last:border-0 hover:bg-secondary/30"
+                >
                   <td className="px-4 py-3">
                     <Link
                       href={`/documents/${d.id}`}
@@ -232,11 +246,15 @@ export default function DocumentsPage() {
                   <td className="px-4 py-3">
                     <RowTags doc={d} workspaceId={workspaceId} />
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{d.chunk_count}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  <td className="px-4 py-3 font-mono text-xs tabular-nums text-muted-foreground">
+                    {d.chunk_count}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs tabular-nums text-muted-foreground">
                     {formatBytes(d.file_size_bytes)}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatDate(d.created_at)}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                    {formatDate(d.created_at)}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
                       <Button

@@ -4,6 +4,7 @@ import { Copy, Trash2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +32,13 @@ function roleVariant(role: Role): "info" | "success" | "default" {
   if (role === "owner") return "info";
   if (role === "admin") return "success";
   return "default";
+}
+
+function initialsOf(value: string): string {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 export default function MembersPage() {
@@ -95,12 +103,16 @@ export default function MembersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Members</h1>
-        <p className="text-sm text-muted-foreground">
-          People with access to <span className="font-medium">{active.name}</span>.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Workspace access"
+        title="Members"
+        description={
+          <>
+            People with access to{" "}
+            <span className="font-medium text-foreground">{active.name}</span>.
+          </>
+        }
+      />
 
       {isAdmin && (
         <Card>
@@ -143,8 +155,10 @@ export default function MembersPage() {
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             {inviteLink && (
-              <div className="rounded-md border border-border bg-secondary/40 p-3">
-                <p className="mb-2 text-sm font-medium">Invite link (shown once)</p>
+              <div className="rounded-md border border-primary/30 bg-primary/[0.06] p-3">
+                <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-primary">
+                  Invite link / shown once
+                </p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 overflow-x-auto whitespace-nowrap rounded bg-background px-2 py-1.5 text-xs">
                     {inviteLink}
@@ -166,7 +180,7 @@ export default function MembersPage() {
 
       <Card className="overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+          <thead className="border-b border-border bg-secondary/40 text-left font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">Member</th>
               <th className="px-4 py-3 font-medium">Role</th>
@@ -175,12 +189,24 @@ export default function MembersPage() {
           </thead>
           <tbody>
             {(members ?? []).map((m) => (
-              <tr key={m.user_id} className="border-b border-border last:border-0">
+              <tr
+                key={m.user_id}
+                className="border-b border-border transition-colors last:border-0 hover:bg-secondary/30"
+              >
                 <td className="px-4 py-3">
-                  <span className="font-medium">{m.full_name || m.email}</span>
-                  {m.full_name && (
-                    <span className="block text-xs text-muted-foreground">{m.email}</span>
-                  )}
+                  <span className="flex items-center gap-3">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-secondary font-mono text-xs font-medium">
+                      {initialsOf(m.full_name || m.email)}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{m.full_name || m.email}</span>
+                      {m.full_name && (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {m.email}
+                        </span>
+                      )}
+                    </span>
+                  </span>
                 </td>
                 <td className="px-4 py-3">
                   {isOwner && m.role !== "owner" ? (

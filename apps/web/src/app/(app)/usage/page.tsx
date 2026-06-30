@@ -1,26 +1,26 @@
 "use client";
 
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  Coins,
+  Database,
+  FileText,
+  Layers,
+  MessagesSquare,
+} from "lucide-react";
 import Link from "next/link";
 
+import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Stat } from "@/components/ui/stat";
 import { useActiveWorkspace, useUsage } from "@/hooks/use-workspaces";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <Card>
-      <CardContent className="p-5">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="mt-1 text-3xl font-semibold tabular-nums">{value}</p>
-        {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
-      </CardContent>
-    </Card>
-  );
 }
 
 export default function UsagePage() {
@@ -43,20 +43,33 @@ export default function UsagePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Usage</h1>
-        <p className="text-sm text-muted-foreground">
-          Activity and quota for <span className="font-medium">{active.name}</span>.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Metering"
+        title="Usage"
+        description={
+          <>
+            Activity and quota for{" "}
+            <span className="font-medium text-foreground">{active.name}</span>.
+          </>
+        }
+      />
 
       {isLoading || !data ? (
-        <p className="text-muted-foreground">Loading…</p>
+        <div className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-28 rounded-lg" />
+            ))}
+          </div>
+          <Skeleton className="h-56 rounded-lg" />
+        </div>
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Stat
               label="Questions this month"
+              icon={MessagesSquare}
+              accent
               value={
                 data.monthly_question_limit != null
                   ? `${data.questions_this_period} / ${data.monthly_question_limit}`
@@ -64,19 +77,22 @@ export default function UsagePage() {
               }
               hint={data.monthly_question_limit == null ? "No limit set" : "Resets monthly"}
             />
-            <Stat label="Documents" value={String(data.total_documents)} />
-            <Stat label="Chunks" value={String(data.total_chunks)} />
-            <Stat label="Storage" value={formatBytes(data.storage_used_bytes)} />
+            <Stat label="Documents" icon={FileText} value={String(data.total_documents)} />
+            <Stat label="Chunks" icon={Layers} value={String(data.total_chunks)} />
+            <Stat label="Storage" icon={Database} value={formatBytes(data.storage_used_bytes)} />
             <Stat
               label="Tokens (prompt)"
+              icon={ArrowUpRight}
               value={data.total_tokens_in.toLocaleString()}
             />
             <Stat
               label="Tokens (completion)"
+              icon={ArrowDownRight}
               value={data.total_tokens_out.toLocaleString()}
             />
             <Stat
               label="Estimated cost"
+              icon={Coins}
               value={`$${data.total_cost_estimate.toFixed(4)}`}
               hint="Based on configured per-token rates"
             />
@@ -84,21 +100,29 @@ export default function UsagePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Questions (last 14 days)</CardTitle>
+              <CardTitle className="font-mono text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                Questions / last 14 days
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {data.questions_by_day.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No questions yet.</p>
               ) : (
-                <div className="flex items-end gap-2" style={{ height: 140 }}>
+                <div className="flex items-end gap-2" style={{ height: 150 }}>
                   {data.questions_by_day.map((d) => (
-                    <div key={d.date} className="flex flex-1 flex-col items-center gap-1">
+                    <div
+                      key={d.date}
+                      className="group flex flex-1 flex-col items-center gap-1.5"
+                    >
+                      <span className="font-mono text-[10px] tabular-nums text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+                        {d.count}
+                      </span>
                       <div
-                        className="w-full rounded-t bg-primary/70"
+                        className="w-full rounded-t bg-primary/60 transition-colors group-hover:bg-primary"
                         style={{ height: `${(d.count / maxDay) * 110}px` }}
                         title={`${d.count} on ${d.date}`}
                       />
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="font-mono text-[10px] text-muted-foreground">
                         {d.date.slice(5)}
                       </span>
                     </div>

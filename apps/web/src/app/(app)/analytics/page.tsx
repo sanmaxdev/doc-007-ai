@@ -1,22 +1,14 @@
 "use client";
 
-import { FileText } from "lucide-react";
+import { CheckCircle2, FileText, MessagesSquare, Percent, ThumbsUp, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
+import { PageHeader } from "@/components/app/page-header";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Stat } from "@/components/ui/stat";
 import { useActiveWorkspace, useAnalytics } from "@/hooks/use-workspaces";
-
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <Card>
-      <CardContent className="p-5">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="mt-1 text-3xl font-semibold tabular-nums">{value}</p>
-        {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
-      </CardContent>
-    </Card>
-  );
-}
 
 export default function AnalyticsPage() {
   const active = useActiveWorkspace();
@@ -35,37 +27,67 @@ export default function AnalyticsPage() {
   }
 
   const totalFeedback = (data?.feedback_helpful ?? 0) + (data?.feedback_not_helpful ?? 0);
-  const helpfulRate = totalFeedback ? Math.round(((data!.feedback_helpful ?? 0) / totalFeedback) * 100) : null;
+  const helpfulRate = totalFeedback
+    ? Math.round(((data!.feedback_helpful ?? 0) / totalFeedback) * 100)
+    : null;
   const maxCites = Math.max(1, ...(data?.top_documents.map((d) => d.citations) ?? [1]));
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Analytics</h1>
-        <p className="text-sm text-muted-foreground">
-          What people ask <span className="font-medium">{active.name}</span>, and how well it answers.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Intelligence"
+        title="Analytics"
+        description={
+          <>
+            What people ask{" "}
+            <span className="font-medium text-foreground">{active.name}</span>, and how well it
+            answers.
+          </>
+        }
+      />
 
       {isLoading || !data ? (
-        <p className="text-muted-foreground">Loading…</p>
+        <div className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-28 rounded-lg" />
+            ))}
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Skeleton className="h-64 rounded-lg" />
+            <Skeleton className="h-64 rounded-lg" />
+          </div>
+        </div>
       ) : data.total_questions === 0 ? (
         <Card>
-          <CardContent className="p-12 text-center text-sm text-muted-foreground">
-            No questions yet. Ask something on the Chat page and analytics will show up here.
+          <CardContent className="flex flex-col items-center gap-3 p-12 text-center">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl border border-border bg-secondary/60">
+              <MessagesSquare className="h-5 w-5 text-primary" />
+            </span>
+            <p className="font-medium">No questions yet</p>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              Ask something on the{" "}
+              <Link href="/chat" className="text-primary hover:underline">
+                Chat
+              </Link>{" "}
+              page and analytics will start showing up here.
+            </p>
           </CardContent>
         </Card>
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat label="Questions" value={String(data.total_questions)} />
+            <Stat label="Questions" icon={MessagesSquare} value={String(data.total_questions)} />
             <Stat
               label="Answer rate"
+              icon={Percent}
+              accent
               value={`${Math.round(data.answer_rate * 100)}%`}
               hint={`${data.answered} answered, ${data.unanswered} unanswered`}
             />
             <Stat
               label="Helpful rating"
+              icon={ThumbsUp}
               value={helpfulRate != null ? `${helpfulRate}%` : "-"}
               hint={
                 totalFeedback
@@ -73,7 +95,12 @@ export default function AnalyticsPage() {
                   : "No feedback yet"
               }
             />
-            <Stat label="Knowledge gaps" value={String(data.unanswered)} hint="Questions with no answer" />
+            <Stat
+              label="Knowledge gaps"
+              icon={TriangleAlert}
+              value={String(data.unanswered)}
+              hint="Questions with no answer"
+            />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
@@ -81,22 +108,24 @@ export default function AnalyticsPage() {
               <CardHeader>
                 <CardTitle>Most cited documents</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3.5">
                 {data.top_documents.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No citations yet.</p>
                 ) : (
                   data.top_documents.map((d) => (
-                    <div key={`${d.document_id}-${d.filename}`} className="space-y-1">
+                    <div key={`${d.document_id}-${d.filename}`} className="space-y-1.5">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          {d.filename}
+                        <span className="flex min-w-0 items-center gap-2">
+                          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="truncate">{d.filename}</span>
                         </span>
-                        <span className="tabular-nums text-muted-foreground">{d.citations}</span>
+                        <span className="ml-2 shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                          {d.citations}
+                        </span>
                       </div>
-                      <div className="h-1.5 w-full rounded-full bg-secondary">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
                         <div
-                          className="h-1.5 rounded-full bg-primary"
+                          className="h-full rounded-full bg-primary"
                           style={{ width: `${(d.citations / maxCites) * 100}%` }}
                         />
                       </div>
@@ -108,7 +137,10 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Knowledge gaps</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <TriangleAlert className="h-4 w-4 text-amber-500" />
+                  Knowledge gaps
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {data.unanswered_questions.length === 0 ? (
@@ -137,18 +169,20 @@ export default function AnalyticsPage() {
               {data.recent_questions.map((q, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
+                  className="flex items-center justify-between gap-3 rounded-md border border-border bg-background/40 px-3 py-2 text-sm"
                 >
                   <span className="truncate">{q.question}</span>
-                  <span
-                    className={
-                      q.answered
-                        ? "ml-3 shrink-0 rounded-full bg-accent/15 px-2 py-0.5 text-xs text-accent"
-                        : "ml-3 shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-600"
-                    }
-                  >
-                    {q.answered ? "answered" : "gap"}
-                  </span>
+                  {q.answered ? (
+                    <Badge variant="success" className="shrink-0">
+                      <CheckCircle2 className="h-3 w-3" />
+                      answered
+                    </Badge>
+                  ) : (
+                    <Badge variant="warning" className="shrink-0">
+                      <TriangleAlert className="h-3 w-3" />
+                      gap
+                    </Badge>
+                  )}
                 </div>
               ))}
             </CardContent>

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { PageHeader } from "@/components/app/page-header";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -66,8 +68,10 @@ function ApiKeysCard({ workspaceId }: { workspaceId: string }) {
         </form>
 
         {newKey && (
-          <div className="rounded-md border border-border bg-secondary/40 p-3">
-            <p className="mb-2 text-sm font-medium">New key (shown once)</p>
+          <div className="rounded-md border border-primary/30 bg-primary/[0.06] p-3">
+            <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-primary">
+              New key / shown once
+            </p>
             <div className="flex items-center gap-2">
               <code className="flex-1 overflow-x-auto whitespace-nowrap rounded bg-background px-2 py-1.5 text-xs">
                 {newKey}
@@ -94,15 +98,15 @@ function ApiKeysCard({ workspaceId }: { workspaceId: string }) {
             (keys ?? []).map((k) => (
               <div
                 key={k.id}
-                className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-md border border-border bg-background/40 px-3 py-2 text-sm transition-colors hover:bg-secondary/30"
               >
-                <span className="flex items-center gap-2">
+                <span className="flex items-center gap-2.5">
                   <span className="font-medium">{k.name}</span>
-                  <code className="text-xs text-muted-foreground">{k.key_prefix}…</code>
+                  <code className="font-mono text-xs text-muted-foreground">{k.key_prefix}…</code>
                   {k.revoked_at && (
-                    <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] text-destructive">
+                    <Badge variant="danger" className="px-1.5 py-0 text-[10px]">
                       revoked
-                    </span>
+                    </Badge>
                   )}
                 </span>
                 {!k.revoked_at && (
@@ -187,10 +191,11 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Settings</h1>
-        <p className="text-sm text-muted-foreground">Manage this workspace.</p>
-      </div>
+      <PageHeader
+        eyebrow="Configuration"
+        title="Settings"
+        description="Manage this workspace, its API access, and its lifecycle."
+      />
 
       <Card>
         <CardHeader>
@@ -254,7 +259,7 @@ export default function SettingsPage() {
       {isAdmin && workspaceId && <ApiKeysCard workspaceId={workspaceId} />}
 
       {isOwner && (
-        <Card className="border-destructive/40">
+        <Card className="border-destructive/40 bg-destructive/[0.03]">
           <CardHeader>
             <CardTitle className="text-destructive">Danger zone</CardTitle>
             <CardDescription>
