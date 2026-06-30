@@ -41,6 +41,9 @@ pnpm-debug.log*
 # ---- Internal planning docs (kept local, not published) ----
 /docs/
 
+# ---- Local runtime artifacts ----
+/.localdata/
+
 # ---- OS / editors ----
 .DS_Store
 Thumbs.db

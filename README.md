@@ -27,7 +27,7 @@ It is built like a real SaaS, not a demo: multi-tenant workspaces with strict is
 | Area | What's inside |
 |---|---|
 | **Auth & RBAC** | JWT (access + refresh), argon2 hashing, Google and GitHub SSO, owner / admin / member roles, email invitations |
-| **Isolation** | Enforced at the SQL layer and the vector store. Cross-tenant requests return `404`, not `403` |
+| **Isolation** | Workspace-scoped on every query, plus a mandatory `workspace_id` filter on every vector search. Cross-tenant requests return `404`, not `403` |
 | **Documents** | PDF / TXT / MD / DOCX upload, validation, tags, search and filters, reprocess, per-document chunk view |
 | **Ingestion** | Async `extract, clean, chunk, embed, store` with a live status state machine and graceful failure |
 | **Retrieval** | Hybrid: dense vectors (Qdrant) plus lexical keywords, fused with Reciprocal Rank Fusion |
@@ -75,11 +75,21 @@ Layering is enforced on the backend. Thin routers call services (business logic)
 
 ## Screenshots
 
-> Screenshots live in [`screenshots/`](screenshots/).
+Grounded, cited answers streamed in real time, plus a retrieval inspector that shows exactly why.
 
-| Retrieval debug | Chat with citations |
+![Landing](screenshots/landing.png)
+
+| Chat with citations | Retrieval inspector |
 |---|---|
-| ![Retrieval debug](screenshots/retrieval.png) | ![Chat](screenshots/chat.png) |
+| ![Chat with citations](screenshots/chat.png) | ![Retrieval inspector](screenshots/retrieval.png) |
+
+| Dashboard | Analytics |
+|---|---|
+| ![Dashboard](screenshots/dashboard.png) | ![Analytics](screenshots/analytics.png) |
+
+| Documents | Mobile |
+|---|---|
+| ![Documents](screenshots/documents.png) | <img src="screenshots/mobile.png" alt="Mobile navigation" width="260" /> |
 
 ## Getting started
 
@@ -155,7 +165,7 @@ Every question is recorded in a usage ledger (prompt and completion tokens plus 
 ## Testing
 
 ```bash
-cd apps/api && pytest                 # 61 tests
+cd apps/api && pytest                 # 62 tests
 cd apps/web && npm run lint && npm run typecheck && npm run build
 ```
 
