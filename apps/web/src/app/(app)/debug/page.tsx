@@ -114,7 +114,7 @@ export default function DebugPage() {
         <div>
           <h1 className="text-2xl font-semibold">Retrieval debug</h1>
           <p className="text-sm text-muted-foreground">
-            See exactly what the RAG pipeline retrieves and how it would be prompted — no
+            See exactly what the RAG pipeline retrieves and how it would be prompted. No
             answer is generated.
           </p>
         </div>
@@ -167,7 +167,7 @@ export default function DebugPage() {
           <div className="flex items-center gap-2">
             <Badge variant="info">{result.method}</Badge>
             {result.not_found ? (
-              <Badge variant="warning">below relevance threshold — would refuse</Badge>
+              <Badge variant="warning">below relevance threshold, would refuse</Badge>
             ) : (
               <Badge variant="success">{result.chunks.length} chunks retrieved</Badge>
             )}

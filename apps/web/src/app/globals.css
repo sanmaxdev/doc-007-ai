@@ -2,46 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  DOC-007-AI design tokens. Direction: "Intelligence Dossier".
+  Dark-first, cool charcoal neutrals, a single amber signal accent for the brand
+  (primary), a restrained emerald reserved for in-app positive status (accent).
+  Mono is used for data: citations, scores, IDs.
+*/
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
+    --background: 210 20% 99%;
+    --foreground: 220 25% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --primary: 221 83% 53%; /* blue-600 */
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 152 60% 40%; /* green accent */
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 221 83% 53%;
-    --radius: 0.5rem;
+    --card-foreground: 220 25% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 12%;
+
+    --primary: 32 94% 46%; /* amber, deeper for light contrast */
+    --primary-foreground: 30 45% 12%;
+
+    --secondary: 210 16% 95%;
+    --secondary-foreground: 220 22% 18%;
+    --muted: 210 16% 95%;
+    --muted-foreground: 218 14% 42%;
+
+    --accent: 158 64% 36%; /* emerald, in-app positive status only */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 18% 90%;
+    --input: 214 18% 90%;
+    --ring: 32 94% 46%;
+    --radius: 0.625rem;
   }
 
   .dark {
-    --background: 222 47% 7%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 9%;
-    --card-foreground: 210 40% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 152 55% 45%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 63% 40%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 20%;
-    --input: 217 33% 20%;
-    --ring: 217 91% 60%;
+    --background: 220 16% 7%;
+    --foreground: 210 20% 96%;
+    --card: 220 15% 9.5%;
+    --card-foreground: 210 20% 96%;
+    --popover: 220 15% 9.5%;
+    --popover-foreground: 210 20% 96%;
+
+    --primary: 38 96% 56%; /* amber */
+    --primary-foreground: 30 45% 8%;
+
+    --secondary: 220 13% 15%;
+    --secondary-foreground: 210 18% 90%;
+    --muted: 220 13% 14%;
+    --muted-foreground: 218 12% 62%;
+
+    --accent: 158 58% 46%; /* emerald */
+    --accent-foreground: 160 45% 7%;
+
+    --destructive: 0 70% 52%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 220 13% 17%;
+    --input: 220 13% 18%;
+    --ring: 38 96% 56%;
   }
 }
 
@@ -51,6 +72,38 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings: "cv01", "ss01", "calt" 1;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background-color: hsl(var(--primary) / 0.28);
+  }
+}
+
+@layer utilities {
+  /* Faint engineering grid for dossier surfaces. Pair with a radial mask. */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, hsl(var(--border) / 0.6) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.6) 1px, transparent 1px);
+    background-size: 54px 54px;
+  }
+  .mask-radial-faded {
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%);
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%);
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

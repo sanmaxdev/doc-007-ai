@@ -101,12 +101,12 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Documents" value={documents ? String(documents.length) : "—"} />
+        <StatCard label="Documents" value={documents ? String(documents.length) : "-"} />
         <StatCard
           label="Conversations"
-          value={conversations ? String(conversations.length) : "—"}
+          value={conversations ? String(conversations.length) : "-"}
         />
-        <StatCard label="Members" value={members ? String(members.length) : "—"} />
+        <StatCard label="Members" value={members ? String(members.length) : "-"} />
       </div>
 
       <Card>

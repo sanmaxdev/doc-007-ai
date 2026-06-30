@@ -66,7 +66,7 @@ export default function AnalyticsPage() {
             />
             <Stat
               label="Helpful rating"
-              value={helpfulRate != null ? `${helpfulRate}%` : "—"}
+              value={helpfulRate != null ? `${helpfulRate}%` : "-"}
               hint={
                 totalFeedback
                   ? `${data.feedback_helpful} up, ${data.feedback_not_helpful} down`

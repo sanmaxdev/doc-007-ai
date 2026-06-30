@@ -75,7 +75,7 @@ export default function DocumentDetailPage() {
           <Card>
             <CardContent className="grid grid-cols-2 gap-4 p-5 sm:grid-cols-4">
               <Meta label="Status" value={doc.status} />
-              <Meta label="Pages" value={doc.page_count != null ? String(doc.page_count) : "—"} />
+              <Meta label="Pages" value={doc.page_count != null ? String(doc.page_count) : "-"} />
               <Meta label="Chunks" value={String(doc.chunk_count)} />
               <Meta label="Size" value={formatBytes(doc.file_size_bytes)} />
               <Meta label="Type" value={doc.mime_type} />
@@ -85,7 +85,7 @@ export default function DocumentDetailPage() {
               />
               <Meta
                 label="Processed"
-                value={doc.processed_at ? new Date(doc.processed_at).toLocaleString() : "—"}
+                value={doc.processed_at ? new Date(doc.processed_at).toLocaleString() : "-"}
               />
             </CardContent>
           </Card>
