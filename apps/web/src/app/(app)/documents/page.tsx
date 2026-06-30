@@ -213,10 +213,13 @@ export default function DocumentsPage() {
               {docs.map((d) => (
                 <tr key={d.id} className="border-b border-border last:border-0">
                   <td className="px-4 py-3">
-                    <span className="flex items-center gap-2 font-medium">
+                    <Link
+                      href={`/documents/${d.id}`}
+                      className="flex items-center gap-2 font-medium hover:text-primary"
+                    >
                       <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                       {d.original_filename}
-                    </span>
+                    </Link>
                     {d.status === "failed" && d.error_message && (
                       <span className="mt-1 block text-xs text-destructive">
                         {d.error_message}

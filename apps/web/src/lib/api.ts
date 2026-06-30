@@ -10,6 +10,7 @@ import type {
   Invitation,
   InvitationCreated,
   Member,
+  RetrieveResponse,
   Role,
   Tag,
   Tokens,
@@ -173,8 +174,19 @@ export const api = {
     request<DocumentItem>(`/workspaces/${workspaceId}/documents/${id}/reprocess`, {
       method: "POST",
     }),
+  getDocument: (workspaceId: string, id: string) =>
+    request<DocumentItem>(`/workspaces/${workspaceId}/documents/${id}`),
   getChunks: (workspaceId: string, id: string) =>
     request<Chunk[]>(`/workspaces/${workspaceId}/documents/${id}/chunks`),
+
+  retrieve: (
+    workspaceId: string,
+    payload: { question: string; document_ids?: string[]; top_k?: number; hybrid?: boolean },
+  ) =>
+    request<RetrieveResponse>(`/workspaces/${workspaceId}/search/retrieve`, {
+      method: "POST",
+      body: payload,
+    }),
 
   listConversations: (workspaceId: string) =>
     request<Conversation[]>(`/workspaces/${workspaceId}/chat/conversations`),

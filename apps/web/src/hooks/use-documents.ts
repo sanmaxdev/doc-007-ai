@@ -25,6 +25,22 @@ export function useDocuments(workspaceId: string | null, filters?: DocumentFilte
   });
 }
 
+export function useDocument(workspaceId: string | null, documentId: string | null) {
+  return useQuery({
+    queryKey: ["document", workspaceId, documentId],
+    queryFn: () => api.getDocument(workspaceId as string, documentId as string),
+    enabled: Boolean(workspaceId && documentId),
+  });
+}
+
+export function useChunks(workspaceId: string | null, documentId: string | null) {
+  return useQuery({
+    queryKey: ["chunks", workspaceId, documentId],
+    queryFn: () => api.getChunks(workspaceId as string, documentId as string),
+    enabled: Boolean(workspaceId && documentId),
+  });
+}
+
 export function useTags(workspaceId: string | null) {
   return useQuery({
     queryKey: ["tags", workspaceId],

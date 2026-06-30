@@ -147,3 +147,25 @@ export type AskResponse = {
   coverage: string;
   not_found: boolean;
 };
+
+export type RetrievedChunk = {
+  chunk_id: string;
+  document_id: string;
+  document_filename: string;
+  page_number: number | null;
+  chunk_index: number;
+  content: string;
+  score: number;
+  lexical_score: number;
+  fused_score: number;
+  dense_rank: number | null;
+  lexical_rank: number | null;
+};
+
+export type RetrieveResponse = {
+  question: string;
+  method: string;
+  not_found: boolean;
+  chunks: RetrievedChunk[];
+  prompt: string;
+};

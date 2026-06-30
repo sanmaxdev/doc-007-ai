@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from doc007.core.config import settings
 from doc007.providers.base import ChatMessage, EmbeddingProvider, LLMProvider
 from doc007.rag.prompt import NOT_FOUND, build_messages
-from doc007.rag.retrieval import RetrievedChunk, retrieve
+from doc007.rag.retrieval import RetrievedChunk, passes_guardrail, retrieve
 from doc007.rag.vector_store import VectorStore
 
 _CITATION_RE = re.compile(r"\[(\d+)\]")
@@ -47,7 +47,7 @@ class AnswerResult:
 def _coverage(chunks: list[RetrievedChunk], cited: int) -> str:
     if not chunks or cited == 0:
         return "none"
-    top = chunks[0].score
+    top = max((c.score for c in chunks), default=0.0)
     if top >= 0.6:
         return "high"
     if top >= 0.4:
@@ -76,8 +76,8 @@ async def generate_answer(
         document_ids=document_ids,
     )
 
-    # Guardrail: nothing retrieved, or the best match is too weak -> do not call the LLM.
-    if not chunks or chunks[0].score < settings.retrieval_min_score:
+    # Guardrail: weak/empty retrieval -> refuse instead of calling the LLM.
+    if not passes_guardrail(chunks):
         return AnswerResult(
             answer=NOT_FOUND, retrieved=chunks, not_found=True, coverage="none", model=llm.name
         )

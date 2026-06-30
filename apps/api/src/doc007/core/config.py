@@ -60,6 +60,11 @@ class Settings(BaseSettings):
     chunk_overlap_tokens: int = 80
     retrieval_top_k: int = 6
     retrieval_min_score: float = 0.25
+    # Hybrid retrieval: dense (vector) + lexical (keyword) fused with RRF.
+    hybrid_enabled: bool = True
+    dense_top_n: int = 20
+    lexical_top_n: int = 20
+    rrf_k: int = 60
 
     # ---- Storage ----
     storage_backend: str = "local"
