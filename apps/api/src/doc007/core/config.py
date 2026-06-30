@@ -79,6 +79,12 @@ class Settings(BaseSettings):
     cost_per_1k_input_tokens: float = 0.00015
     cost_per_1k_output_tokens: float = 0.0006
 
+    # ---- OAuth / SSO (a provider is enabled only when both values are set) ----
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    github_client_id: str | None = None
+    github_client_secret: str | None = None
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

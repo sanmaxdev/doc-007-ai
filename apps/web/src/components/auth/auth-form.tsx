@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { ApiError, api } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth";
 
@@ -106,6 +107,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               {error}
             </p>
           )}
+          <OAuthButtons />
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
           <Button type="submit" className="w-full" disabled={loading}>

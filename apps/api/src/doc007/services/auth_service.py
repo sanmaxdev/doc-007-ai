@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 import uuid
 from datetime import UTC, datetime
 
@@ -47,6 +48,36 @@ async def authenticate(db: AsyncSession, *, email: str, password: str) -> User:
     if not user.is_active:
         raise UnauthorizedError("This account is disabled.")
 
+    user.last_login_at = datetime.now(UTC)
+    await db.commit()
+    return user
+
+
+async def get_or_create_oauth_user(
+    db: AsyncSession, *, email: str, full_name: str | None = None
+) -> User:
+    """Find a user by email or create one for SSO sign-in.
+
+    Linking is by verified email: an existing account with the same email is
+    reused. OAuth-only accounts get a random unusable password and are marked
+    verified (the provider vouched for the email).
+    """
+    email = email.strip().lower()
+    user = await get_user_by_email(db, email)
+    if user is None:
+        user = User(
+            email=email,
+            hashed_password=hash_password(secrets.token_urlsafe(32)),
+            full_name=full_name,
+            is_verified=True,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return user
+
+    if not user.is_active:
+        raise UnauthorizedError("This account is disabled.")
     user.last_login_at = datetime.now(UTC)
     await db.commit()
     return user

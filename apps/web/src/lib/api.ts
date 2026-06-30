@@ -110,6 +110,20 @@ export const api = {
     }),
   me: () => request<User>("/auth/me"),
   logout: () => request<{ detail: string }>("/auth/logout", { method: "POST" }),
+  oauthProviders: () =>
+    request<{ providers: string[] }>("/auth/oauth/providers", { auth: false }),
+  oauthAuthorize: (provider: string, redirectUri: string) =>
+    request<{ authorize_url: string; state: string }>("/auth/oauth/authorize", {
+      method: "POST",
+      auth: false,
+      body: { provider, redirect_uri: redirectUri },
+    }),
+  oauthCallback: (provider: string, code: string, redirectUri: string) =>
+    request<Tokens>("/auth/oauth/callback", {
+      method: "POST",
+      auth: false,
+      body: { provider, code, redirect_uri: redirectUri },
+    }),
   listWorkspaces: () => request<Workspace[]>("/workspaces"),
   createWorkspace: (name: string, description?: string) =>
     request<Workspace>("/workspaces", { method: "POST", body: { name, description } }),

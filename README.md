@@ -26,7 +26,7 @@ It is built like a real SaaS, not a demo: multi-tenant workspaces with strict is
 
 | Area | What's inside |
 |---|---|
-| **Auth & RBAC** | JWT (access + refresh), argon2 hashing, owner / admin / member roles, email invitations |
+| **Auth & RBAC** | JWT (access + refresh), argon2 hashing, Google and GitHub SSO, owner / admin / member roles, email invitations |
 | **Isolation** | Enforced at the SQL layer and the vector store. Cross-tenant requests return `404`, not `403` |
 | **Documents** | PDF / TXT / MD / DOCX upload, validation, tags, search and filters, reprocess, per-document chunk view |
 | **Ingestion** | Async `extract, clean, chunk, embed, store` with a live status state machine and graceful failure |
@@ -103,6 +103,8 @@ docker compose exec api alembic upgrade head
 
 Register, create a workspace, upload a document, watch it reach **Ready**, then ask questions.
 
+**Optional SSO.** Set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` or `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` and a "Continue with Google / GitHub" button appears on the sign-in page. With nothing set, SSO is simply hidden. Register the redirect URI `http://localhost:3000/oauth/<provider>/callback` with the provider.
+
 > **No API keys?** The app still runs end to end with built-in mock providers, but answers fall back to "not found" because mock embeddings aren't semantically meaningful. Add real keys for genuine grounded answers.
 
 ## How it works
@@ -153,11 +155,11 @@ Every question is recorded in a usage ledger (prompt and completion tokens plus 
 ## Testing
 
 ```bash
-cd apps/api && pytest                 # 57 tests
+cd apps/api && pytest                 # 61 tests
 cd apps/web && npm run lint && npm run typecheck && npm run build
 ```
 
-Coverage includes the security-critical **workspace isolation** tests, the ingestion pipeline, hybrid retrieval and the not-found guardrail, RBAC and invitations, the public API and rate limiter, quota enforcement, streaming answers, and analytics.
+Coverage includes the security-critical **workspace isolation** tests, the ingestion pipeline, hybrid retrieval and the not-found guardrail, RBAC and invitations, the public API and rate limiter, quota enforcement, streaming answers, analytics, and SSO sign-in.
 
 ## Roadmap
 
@@ -168,8 +170,7 @@ Coverage includes the security-critical **workspace isolation** tests, the inges
 - [x] **Phase 4:** Invitations, role management, audit logs, tags, answer feedback
 - [x] **Phase 5:** Hybrid retrieval, a RAG debug/eval view, document detail
 - [x] **Phase 6:** Public API, API keys, rate limiting, usage quotas
-- [x] **Phase 7:** Streaming answers and workspace analytics
-- [ ] **Next:** SSO
+- [x] **Phase 7:** Streaming answers, workspace analytics, and SSO (Google and GitHub)
 
 ## License
 

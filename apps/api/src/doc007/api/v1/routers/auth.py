@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 import uuid
 
 from fastapi import APIRouter, Depends, status
@@ -18,12 +19,16 @@ from doc007.db.base import get_db
 from doc007.db.models.user import User
 from doc007.schemas.auth import (
     LoginRequest,
+    OAuthAuthorizeRequest,
+    OAuthAuthorizeResponse,
+    OAuthCallbackRequest,
+    OAuthProvidersOut,
     RefreshRequest,
     RegisterRequest,
     TokenResponse,
     UserOut,
 )
-from doc007.services import auth_service
+from doc007.services import auth_service, oauth_service
 
 router = APIRouter()
 
@@ -75,3 +80,29 @@ async def logout(_: User = Depends(get_current_user)) -> dict:
 @router.get("/me", response_model=UserOut)
 async def me(current_user: User = Depends(get_current_user)) -> User:
     return current_user
+
+
+# ---- OAuth / SSO ---------------------------------------------------------
+
+
+@router.get("/oauth/providers", response_model=OAuthProvidersOut)
+async def oauth_providers() -> OAuthProvidersOut:
+    return OAuthProvidersOut(providers=oauth_service.enabled_providers())
+
+
+@router.post("/oauth/authorize", response_model=OAuthAuthorizeResponse)
+async def oauth_authorize(data: OAuthAuthorizeRequest) -> OAuthAuthorizeResponse:
+    state = secrets.token_urlsafe(16)
+    url = oauth_service.authorize_url(data.provider, data.redirect_uri, state)
+    return OAuthAuthorizeResponse(authorize_url=url, state=state)
+
+
+@router.post("/oauth/callback", response_model=TokenResponse)
+async def oauth_callback(
+    data: OAuthCallbackRequest, db: AsyncSession = Depends(get_db)
+) -> TokenResponse:
+    profile = await oauth_service.exchange_code(data.provider, data.code, data.redirect_uri)
+    user = await auth_service.get_or_create_oauth_user(
+        db, email=profile.email, full_name=profile.full_name
+    )
+    return _tokens_for(user)

@@ -38,3 +38,23 @@ class UserOut(BaseModel):
     is_active: bool
     is_verified: bool
     created_at: datetime
+
+
+class OAuthProvidersOut(BaseModel):
+    providers: list[str]
+
+
+class OAuthAuthorizeRequest(BaseModel):
+    provider: str
+    redirect_uri: str
+
+
+class OAuthAuthorizeResponse(BaseModel):
+    authorize_url: str
+    state: str
+
+
+class OAuthCallbackRequest(BaseModel):
+    provider: str
+    code: str
+    redirect_uri: str
