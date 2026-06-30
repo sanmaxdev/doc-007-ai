@@ -4,6 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { MessagesSquare, Plus, Send, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { CitationCard } from "@/components/chat/citation-card";
 import { CoverageBadge } from "@/components/chat/coverage-badge";
@@ -43,12 +45,18 @@ function MessageBubble({
             : "rounded-bl-sm border border-border bg-secondary/50",
         )}
       >
-        <p className="whitespace-pre-wrap leading-relaxed">
-          {message.content}
-          {streaming && (
+        {isUser ? (
+          <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+        ) : streaming ? (
+          <p className="whitespace-pre-wrap leading-relaxed">
+            {message.content}
             <span className="ml-0.5 inline-block h-4 w-1.5 -translate-y-px animate-pulse bg-primary align-middle" />
-          )}
-        </p>
+          </p>
+        ) : (
+          <div className="leading-relaxed [&_a]:text-primary [&_a]:underline [&_code]:rounded [&_code]:bg-background/70 [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs [&_li]:mb-1 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2 [&_p:last-child]:mb-0 [&_strong]:font-semibold [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+          </div>
+        )}
         {!isUser && coverage && coverage !== "none" && (
           <div className="mt-2.5">
             <CoverageBadge coverage={coverage} />
