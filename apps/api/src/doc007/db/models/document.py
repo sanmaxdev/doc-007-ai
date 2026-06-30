@@ -23,6 +23,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from doc007.db.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from doc007.db.models.tag import Tag
     from doc007.db.models.workspace import Workspace
 
 
@@ -67,6 +68,10 @@ class Document(Base, TimestampMixin):
     workspace: Mapped[Workspace] = relationship()
     chunks: Mapped[list[DocumentChunk]] = relationship(
         back_populates="document", cascade="all, delete-orphan"
+    )
+    # Eager (selectin) so tags are available wherever a Document is serialized.
+    tags: Mapped[list[Tag]] = relationship(
+        secondary="document_tags", lazy="selectin", order_by="Tag.name"
     )
 
     def __repr__(self) -> str:  # pragma: no cover

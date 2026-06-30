@@ -1,11 +1,11 @@
-"""Document endpoints (workspace-scoped): upload, list, get, delete, reprocess, chunks."""
+"""Document endpoints (workspace-scoped): upload, list, get, delete, reprocess, chunks, tags."""
 
 from __future__ import annotations
 
 import uuid
 from collections.abc import Callable
 
-from fastapi import APIRouter, Depends, File, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Query, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from doc007.core.deps import (
@@ -16,11 +16,12 @@ from doc007.core.deps import (
 )
 from doc007.core.exceptions import NotFoundError
 from doc007.db.base import get_db
+from doc007.db.models.audit import AuditAction
 from doc007.db.models.document import DocumentStatus
 from doc007.db.models.workspace import WorkspaceMember
 from doc007.rag.vector_store import VectorStore
-from doc007.schemas.document import ChunkOut, DocumentOut
-from doc007.services import document_service
+from doc007.schemas.document import ChunkOut, DocumentOut, TagCreate, TagOut
+from doc007.services import audit_service, document_service, tag_service
 from doc007.storage.base import Storage
 
 router = APIRouter()
@@ -45,17 +46,28 @@ async def upload_document(
         storage=storage,
     )
     enqueue(doc.id)
+    await audit_service.record(
+        db,
+        workspace_id=membership.workspace_id,
+        actor_id=membership.user_id,
+        action=AuditAction.document_upload,
+        target_type="document",
+        target_id=doc.id,
+        details={"filename": doc.original_filename},
+    )
     return DocumentOut.model_validate(doc)
 
 
 @router.get("", response_model=list[DocumentOut])
 async def list_documents(
     status_filter: DocumentStatus | None = None,
+    search: str | None = Query(default=None, max_length=255),
+    tag_id: uuid.UUID | None = None,
     membership: WorkspaceMember = Depends(get_membership),
     db: AsyncSession = Depends(get_db),
 ) -> list[DocumentOut]:
     docs = await document_service.list_documents(
-        db, membership.workspace_id, status=status_filter
+        db, membership.workspace_id, status=status_filter, search=search, tag_id=tag_id
     )
     return [DocumentOut.model_validate(d) for d in docs]
 
@@ -84,6 +96,14 @@ async def reprocess_document(
         raise NotFoundError("Document not found.")
     await document_service.reset_for_reprocess(db, doc)
     enqueue(doc.id)
+    await audit_service.record(
+        db,
+        workspace_id=membership.workspace_id,
+        actor_id=membership.user_id,
+        action=AuditAction.document_reprocess,
+        target_type="document",
+        target_id=doc.id,
+    )
     return DocumentOut.model_validate(doc)
 
 
@@ -117,4 +137,64 @@ async def delete_document(
     )
     if not deleted:
         raise NotFoundError("Document not found.")
+    await audit_service.record(
+        db,
+        workspace_id=membership.workspace_id,
+        actor_id=membership.user_id,
+        action=AuditAction.document_delete,
+        target_type="document",
+        target_id=document_id,
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ---- Tags ----------------------------------------------------------------
+
+
+@router.post("/{document_id}/tags", response_model=list[TagOut])
+async def add_document_tag(
+    document_id: uuid.UUID,
+    data: TagCreate,
+    membership: WorkspaceMember = Depends(get_membership),
+    db: AsyncSession = Depends(get_db),
+) -> list[TagOut]:
+    doc = await document_service.get_document(db, membership.workspace_id, document_id)
+    if doc is None:
+        raise NotFoundError("Document not found.")
+    tags = await tag_service.add_tag(
+        db, workspace_id=membership.workspace_id, document_id=document_id, name=data.name
+    )
+    await audit_service.record(
+        db,
+        workspace_id=membership.workspace_id,
+        actor_id=membership.user_id,
+        action=AuditAction.tag_added,
+        target_type="document",
+        target_id=document_id,
+        details={"tag": data.name.strip().lower()},
+    )
+    return [TagOut.model_validate(t) for t in tags]
+
+
+@router.delete("/{document_id}/tags/{tag_id}", response_model=list[TagOut])
+async def remove_document_tag(
+    document_id: uuid.UUID,
+    tag_id: uuid.UUID,
+    membership: WorkspaceMember = Depends(get_membership),
+    db: AsyncSession = Depends(get_db),
+) -> list[TagOut]:
+    doc = await document_service.get_document(db, membership.workspace_id, document_id)
+    if doc is None:
+        raise NotFoundError("Document not found.")
+    tags = await tag_service.remove_tag(
+        db, workspace_id=membership.workspace_id, document_id=document_id, tag_id=tag_id
+    )
+    await audit_service.record(
+        db,
+        workspace_id=membership.workspace_id,
+        actor_id=membership.user_id,
+        action=AuditAction.tag_removed,
+        target_type="document",
+        target_id=document_id,
+    )
+    return [TagOut.model_validate(t) for t in tags]

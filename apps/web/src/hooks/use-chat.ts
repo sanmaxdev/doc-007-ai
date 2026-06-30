@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
+import type { FeedbackRating } from "@/lib/types";
 
 export function useConversations(workspaceId: string | null) {
   return useQuery({
@@ -41,5 +42,19 @@ export function useDeleteConversation(workspaceId: string | null) {
       api.deleteConversation(workspaceId as string, conversationId),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["conversations", workspaceId] }),
+  });
+}
+
+export function useSubmitFeedback(workspaceId: string | null) {
+  return useMutation({
+    mutationFn: ({
+      messageId,
+      rating,
+      comment,
+    }: {
+      messageId: string;
+      rating: FeedbackRating;
+      comment?: string;
+    }) => api.submitFeedback(workspaceId as string, messageId, rating, comment),
   });
 }

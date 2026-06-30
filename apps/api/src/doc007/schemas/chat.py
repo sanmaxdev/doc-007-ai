@@ -7,6 +7,22 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from doc007.db.models.feedback import FeedbackRating
+
+
+class FeedbackRequest(BaseModel):
+    rating: FeedbackRating
+    comment: str | None = Field(default=None, max_length=2000)
+
+
+class FeedbackOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    message_id: uuid.UUID
+    rating: FeedbackRating
+    comment: str | None
+
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)

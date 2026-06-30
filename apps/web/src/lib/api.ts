@@ -1,10 +1,17 @@
 import type {
   AskResponse,
+  AuditLog,
   Chunk,
   Conversation,
   ConversationDetail,
   DocumentItem,
+  Feedback,
+  FeedbackRating,
+  Invitation,
+  InvitationCreated,
   Member,
+  Role,
+  Tag,
   Tokens,
   User,
   Workspace,
@@ -101,10 +108,57 @@ export const api = {
   createWorkspace: (name: string, description?: string) =>
     request<Workspace>("/workspaces", { method: "POST", body: { name, description } }),
   getWorkspace: (id: string) => request<Workspace>(`/workspaces/${id}`),
-  listMembers: (id: string) => request<Member[]>(`/workspaces/${id}/members`),
+  updateWorkspace: (id: string, data: { name?: string; description?: string }) =>
+    request<Workspace>(`/workspaces/${id}`, { method: "PATCH", body: data }),
+  deleteWorkspace: (id: string) =>
+    request<void>(`/workspaces/${id}`, { method: "DELETE" }),
 
-  listDocuments: (workspaceId: string) =>
-    request<DocumentItem[]>(`/workspaces/${workspaceId}/documents`),
+  listMembers: (id: string) => request<Member[]>(`/workspaces/${id}/members`),
+  changeMemberRole: (id: string, userId: string, role: Role) =>
+    request<Member>(`/workspaces/${id}/members/${userId}/role`, {
+      method: "PATCH",
+      body: { role },
+    }),
+  removeMember: (id: string, userId: string) =>
+    request<void>(`/workspaces/${id}/members/${userId}`, { method: "DELETE" }),
+
+  listInvitations: (id: string) =>
+    request<Invitation[]>(`/workspaces/${id}/invitations`),
+  createInvitation: (id: string, email: string, role: Role) =>
+    request<InvitationCreated>(`/workspaces/${id}/invitations`, {
+      method: "POST",
+      body: { email, role },
+    }),
+  revokeInvitation: (id: string, invitationId: string) =>
+    request<void>(`/workspaces/${id}/invitations/${invitationId}`, { method: "DELETE" }),
+  acceptInvitation: (token: string) =>
+    request<Workspace>("/invitations/accept", { method: "POST", body: { token } }),
+
+  listAuditLogs: (id: string) =>
+    request<AuditLog[]>(`/workspaces/${id}/audit-logs`),
+
+  listTags: (id: string) => request<Tag[]>(`/workspaces/${id}/tags`),
+  addDocumentTag: (workspaceId: string, documentId: string, name: string) =>
+    request<Tag[]>(`/workspaces/${workspaceId}/documents/${documentId}/tags`, {
+      method: "POST",
+      body: { name },
+    }),
+  removeDocumentTag: (workspaceId: string, documentId: string, tagId: string) =>
+    request<Tag[]>(`/workspaces/${workspaceId}/documents/${documentId}/tags/${tagId}`, {
+      method: "DELETE",
+    }),
+
+  listDocuments: (
+    workspaceId: string,
+    filters?: { status_filter?: string; search?: string; tag_id?: string },
+  ) => {
+    const qs = new URLSearchParams();
+    if (filters?.status_filter) qs.set("status_filter", filters.status_filter);
+    if (filters?.search) qs.set("search", filters.search);
+    if (filters?.tag_id) qs.set("tag_id", filters.tag_id);
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return request<DocumentItem[]>(`/workspaces/${workspaceId}/documents${suffix}`);
+  },
   uploadDocument: (workspaceId: string, file: File) => {
     const fd = new FormData();
     fd.append("file", file);
@@ -136,4 +190,14 @@ export const api = {
     workspaceId: string,
     payload: { question: string; conversation_id?: string; document_ids?: string[] },
   ) => request<AskResponse>(`/workspaces/${workspaceId}/chat/ask`, { method: "POST", body: payload }),
+  submitFeedback: (
+    workspaceId: string,
+    messageId: string,
+    rating: FeedbackRating,
+    comment?: string,
+  ) =>
+    request<Feedback>(`/workspaces/${workspaceId}/chat/messages/${messageId}/feedback`, {
+      method: "POST",
+      body: { rating, comment },
+    }),
 };

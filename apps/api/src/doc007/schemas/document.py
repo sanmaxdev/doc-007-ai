@@ -5,9 +5,20 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from doc007.db.models.document import DocumentStatus
+
+
+class TagOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+
+
+class TagCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
 
 
 class DocumentOut(BaseModel):
@@ -24,6 +35,7 @@ class DocumentOut(BaseModel):
     uploaded_by: uuid.UUID | None
     created_at: datetime
     processed_at: datetime | None
+    tags: list[TagOut] = []
 
 
 class ChunkOut(BaseModel):

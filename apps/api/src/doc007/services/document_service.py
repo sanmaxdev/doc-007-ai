@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from doc007.core.config import settings
 from doc007.core.exceptions import ValidationError
 from doc007.db.models.document import Document, DocumentChunk, DocumentStatus
+from doc007.db.models.tag import DocumentTag
 from doc007.rag.vector_store import VectorStore
 from doc007.storage.base import Storage
 
@@ -77,11 +78,22 @@ async def create_document(
 
 
 async def list_documents(
-    db: AsyncSession, workspace_id: uuid.UUID, *, status: DocumentStatus | None = None
+    db: AsyncSession,
+    workspace_id: uuid.UUID,
+    *,
+    status: DocumentStatus | None = None,
+    search: str | None = None,
+    tag_id: uuid.UUID | None = None,
 ) -> list[Document]:
     stmt = select(Document).where(Document.workspace_id == workspace_id)
     if status is not None:
         stmt = stmt.where(Document.status == status)
+    if search:
+        stmt = stmt.where(Document.original_filename.ilike(f"%{search.strip()}%"))
+    if tag_id is not None:
+        stmt = stmt.join(DocumentTag, DocumentTag.document_id == Document.id).where(
+            DocumentTag.tag_id == tag_id
+        )
     stmt = stmt.order_by(Document.created_at.desc())
     result = await db.execute(stmt)
     return list(result.scalars().all())

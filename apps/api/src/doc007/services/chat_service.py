@@ -8,8 +8,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from doc007.core.exceptions import NotFoundError
+from doc007.core.exceptions import NotFoundError, ValidationError
 from doc007.db.models.conversation import Citation, Conversation, Message, MessageRole
+from doc007.db.models.feedback import Feedback, FeedbackRating
 from doc007.providers.base import ChatMessage, EmbeddingProvider, LLMProvider
 from doc007.rag.answer import AnswerResult, generate_answer
 from doc007.rag.vector_store import VectorStore
@@ -64,6 +65,49 @@ async def get_messages(db: AsyncSession, conversation_id: uuid.UUID) -> list[Mes
 async def delete_conversation(db: AsyncSession, conversation: Conversation) -> None:
     await db.delete(conversation)
     await db.commit()
+
+
+async def submit_feedback(
+    db: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+    message_id: uuid.UUID,
+    rating: FeedbackRating,
+    comment: str | None = None,
+) -> Feedback:
+    result = await db.execute(
+        select(Message)
+        .join(Conversation, Conversation.id == Message.conversation_id)
+        .where(
+            Message.id == message_id,
+            Conversation.workspace_id == workspace_id,
+            Conversation.user_id == user_id,
+        )
+    )
+    message = result.scalar_one_or_none()
+    if message is None:
+        raise NotFoundError("Message not found.")
+    if message.role != MessageRole.assistant:
+        raise ValidationError("Feedback can only be given on assistant answers.")
+
+    existing = await db.execute(
+        select(Feedback).where(
+            Feedback.message_id == message_id, Feedback.user_id == user_id
+        )
+    )
+    feedback = existing.scalar_one_or_none()
+    if feedback is None:
+        feedback = Feedback(
+            message_id=message_id, user_id=user_id, rating=rating, comment=comment
+        )
+        db.add(feedback)
+    else:
+        feedback.rating = rating
+        feedback.comment = comment
+    await db.commit()
+    await db.refresh(feedback)
+    return feedback
 
 
 async def _history(db: AsyncSession, conversation_id: uuid.UUID) -> list[ChatMessage]:

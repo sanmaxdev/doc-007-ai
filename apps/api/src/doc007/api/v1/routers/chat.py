@@ -15,6 +15,7 @@ from doc007.core.deps import (
 )
 from doc007.core.exceptions import NotFoundError
 from doc007.db.base import get_db
+from doc007.db.models.audit import AuditAction
 from doc007.db.models.conversation import Message
 from doc007.db.models.workspace import WorkspaceMember
 from doc007.providers.base import EmbeddingProvider, LLMProvider
@@ -26,9 +27,11 @@ from doc007.schemas.chat import (
     CitationOut,
     ConversationDetail,
     ConversationOut,
+    FeedbackOut,
+    FeedbackRequest,
     MessageOut,
 )
-from doc007.services import chat_service
+from doc007.services import audit_service, chat_service
 
 router = APIRouter()
 
@@ -128,6 +131,14 @@ async def ask(
         llm=llm,
         vector_store=vector_store,
     )
+    await audit_service.record(
+        db,
+        workspace_id=membership.workspace_id,
+        actor_id=membership.user_id,
+        action=AuditAction.question_asked,
+        target_type="conversation",
+        target_id=conv.id,
+    )
     return AskResponse(
         conversation_id=conv.id,
         message_id=message.id,
@@ -136,3 +147,21 @@ async def ask(
         coverage=result.coverage,
         not_found=result.not_found,
     )
+
+
+@router.post("/messages/{message_id}/feedback", response_model=FeedbackOut)
+async def submit_feedback(
+    message_id: uuid.UUID,
+    payload: FeedbackRequest,
+    membership: WorkspaceMember = Depends(get_membership),
+    db: AsyncSession = Depends(get_db),
+) -> FeedbackOut:
+    feedback = await chat_service.submit_feedback(
+        db,
+        workspace_id=membership.workspace_id,
+        user_id=membership.user_id,
+        message_id=message_id,
+        rating=payload.rating,
+        comment=payload.comment,
+    )
+    return FeedbackOut.model_validate(feedback)

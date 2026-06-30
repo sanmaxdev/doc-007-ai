@@ -6,6 +6,8 @@ Used by the auth service.
 
 from __future__ import annotations
 
+import hashlib
+import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -58,3 +60,15 @@ def decode_token(token: str) -> dict[str, Any] | None:
         return jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
     except JWTError:
         return None
+
+
+# ---- Opaque tokens (invitations, API keys) -------------------------------
+
+
+def generate_token() -> str:
+    """A URL-safe random token. Show the raw value once; store only its hash."""
+    return secrets.token_urlsafe(32)
+
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()

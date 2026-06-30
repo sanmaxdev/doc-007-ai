@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Send, Trash2 } from "lucide-react";
+import { Plus, Send, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -12,17 +12,22 @@ import {
   useConversation,
   useConversations,
   useDeleteConversation,
+  useSubmitFeedback,
 } from "@/hooks/use-chat";
 import { cn } from "@/lib/utils";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage, FeedbackRating } from "@/lib/types";
 import { useWorkspaceStore } from "@/stores/workspace";
 
 function MessageBubble({
   message,
   coverage,
+  rating,
+  onRate,
 }: {
   message: ChatMessage;
   coverage?: string;
+  rating?: FeedbackRating;
+  onRate?: (rating: FeedbackRating) => void;
 }) {
   const isUser = message.role === "user";
   return (
@@ -47,6 +52,33 @@ function MessageBubble({
             ))}
           </div>
         )}
+        {!isUser && onRate && (
+          <div className="mt-3 flex items-center gap-1 border-t border-border/60 pt-2">
+            <span className="mr-1 text-xs text-muted-foreground">Was this helpful?</span>
+            <button
+              type="button"
+              aria-label="Helpful"
+              className={cn(
+                "rounded p-1 hover:bg-background",
+                rating === "helpful" ? "text-accent" : "text-muted-foreground",
+              )}
+              onClick={() => onRate("helpful")}
+            >
+              <ThumbsUp className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Not helpful"
+              className={cn(
+                "rounded p-1 hover:bg-background",
+                rating === "not_helpful" ? "text-destructive" : "text-muted-foreground",
+              )}
+              onClick={() => onRate("not_helpful")}
+            >
+              <ThumbsDown className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -58,10 +90,26 @@ export default function ChatPage() {
   const [question, setQuestion] = useState("");
   const [coverageByMsg, setCoverageByMsg] = useState<Record<string, string>>({});
 
+  const [feedbackByMsg, setFeedbackByMsg] = useState<Record<string, FeedbackRating>>({});
+
   const { data: conversations } = useConversations(workspaceId);
   const { data: detail } = useConversation(workspaceId, activeId);
   const ask = useAsk(workspaceId);
   const del = useDeleteConversation(workspaceId);
+  const feedback = useSubmitFeedback(workspaceId);
+
+  async function rate(messageId: string, rating: FeedbackRating) {
+    setFeedbackByMsg((prev) => ({ ...prev, [messageId]: rating }));
+    try {
+      await feedback.mutateAsync({ messageId, rating });
+    } catch {
+      setFeedbackByMsg((prev) => {
+        const next = { ...prev };
+        delete next[messageId];
+        return next;
+      });
+    }
+  }
 
   if (!workspaceId) {
     return (
@@ -139,7 +187,15 @@ export default function ChatPage() {
             </div>
           ) : (
             messages.map((m) => (
-              <MessageBubble key={m.id} message={m} coverage={coverageByMsg[m.id]} />
+              <MessageBubble
+                key={m.id}
+                message={m}
+                coverage={coverageByMsg[m.id]}
+                rating={feedbackByMsg[m.id]}
+                onRate={
+                  m.role === "assistant" ? (r) => rate(m.id, r) : undefined
+                }
+              />
             ))
           )}
           {ask.isPending && <div className="text-sm text-muted-foreground">Thinking…</div>}

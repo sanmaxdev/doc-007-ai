@@ -41,6 +41,11 @@ export type DocumentStatus =
   | "ready"
   | "failed";
 
+export type Tag = {
+  id: string;
+  name: string;
+};
+
 export type DocumentItem = {
   id: string;
   original_filename: string;
@@ -53,6 +58,41 @@ export type DocumentItem = {
   uploaded_by: string | null;
   created_at: string;
   processed_at: string | null;
+  tags: Tag[];
+};
+
+export type Invitation = {
+  id: string;
+  email: string;
+  role: Role;
+  status: string;
+  expires_at: string | null;
+  created_at: string;
+};
+
+export type InvitationCreated = {
+  invitation: Invitation;
+  token: string;
+};
+
+export type AuditLog = {
+  id: string;
+  action: string;
+  actor_id: string | null;
+  actor_email: string | null;
+  target_type: string | null;
+  target_id: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+};
+
+export type FeedbackRating = "helpful" | "not_helpful";
+
+export type Feedback = {
+  id: string;
+  message_id: string;
+  rating: FeedbackRating;
+  comment: string | null;
 };
 
 export type Chunk = {
