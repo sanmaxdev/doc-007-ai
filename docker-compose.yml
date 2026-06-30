@@ -46,6 +46,10 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
+      # Uses the final `runtime` stage: uvicorn/celery are on PATH and
+      # PYTHONPATH=/app/src points at the bind-mounted source below, so
+      # --reload picks up host edits without an editable install.
+      target: runtime
     env_file: .env
     environment:
       # override hosts so the API reaches services by their compose names
@@ -72,6 +76,7 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
+      target: runtime
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-doc007}:${POSTGRES_PASSWORD:-doc007}@postgres:5432/${POSTGRES_DB:-doc007}
@@ -95,6 +100,12 @@ services:
     build:
       context: ./apps/web
       dockerfile: Dockerfile
+      # The production Dockerfile's final `runner` stage ships a standalone
+      # bundle without a dev node_modules tree. For local dev we build the
+      # `deps` stage instead, which has the full node_modules that the
+      # anonymous volume below seeds, then run `npm run dev` over the
+      # bind-mounted source.
+      target: deps
     environment:
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
     ports:

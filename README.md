@@ -38,7 +38,7 @@ It is built like a real SaaS, not a demo: multi-tenant workspaces with strict is
 | **Public API** | `/api/public/v1` authenticated by API keys, rate-limited per key |
 | **Usage & quotas** | A usage ledger (tokens and cost) and an enforceable monthly question limit per workspace |
 | **Analytics** | Answer rate, knowledge gaps, most-cited documents, and feedback trends |
-| **Ops** | One `docker compose up`, Alembic migrations, GitHub Actions CI |
+| **Ops** | One `docker compose up` for dev, production Docker images + a prod compose, Alembic migrations, GitHub Actions CI |
 
 ## Architecture
 
@@ -159,8 +159,10 @@ Every question is recorded in a usage ledger (prompt and completion tokens plus 
 - **Tenant isolation** at three layers: workspace-scoped SQL, a mandatory `workspace_id` filter on every Qdrant search, and per-request membership checks that return `404` so existence isn't leaked.
 - **Prompt-injection defense.** Retrieved document text is treated as data, never as instructions.
 - **Secrets.** Passwords hashed with argon2id. API keys and invitation tokens stored only as SHA-256 hashes and shown once. Provider keys are server-side only.
-- **Abuse controls.** Per-key rate limiting (Redis, fails open) and per-workspace question quotas.
+- **Session control.** JWT logout and refresh revoke tokens through a Redis denylist, and refresh tokens are single-use (rotated on every refresh), so logout and credential compromise take effect immediately.
+- **Abuse controls.** Per-IP rate limiting on the auth endpoints, per-key rate limiting on the public API, and per-workspace question quotas. List endpoints are paginated.
 - **Audit trail.** Uploads, deletes, invites, role changes, and key lifecycle are recorded.
+- **Startup safety.** The API refuses to boot outside development with a default or weak `JWT_SECRET_KEY`, or with debug enabled.
 
 ## Testing
 
@@ -170,6 +172,17 @@ cd apps/web && npm run lint && npm run typecheck && npm run build
 ```
 
 Coverage includes the security-critical **workspace isolation** tests, the ingestion pipeline, hybrid retrieval and the not-found guardrail, RBAC and invitations, the public API and rate limiter, quota enforcement, streaming answers, analytics, and SSO sign-in.
+
+## Deployment
+
+Production images and a separate prod compose file are included. Build the web image from the Next.js standalone output and run the API under gunicorn with uvicorn workers; the datastores stay unpublished and the API applies migrations on start.
+
+```bash
+# single VM, behind a TLS reverse proxy
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+See [DEPLOY.md](DEPLOY.md) for the full guide, including a split managed setup (web on Vercel, API on a container host, managed Postgres and Redis, Qdrant Cloud) and the production hardening checklist.
 
 ## Roadmap
 

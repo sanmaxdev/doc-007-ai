@@ -1,0 +1,145 @@
+# ======================================================================
+# DOC-007-AI - production compose
+#
+# Single-VM deployment. Builds the production Dockerfiles, runs migrations
+# before serving, and keeps datastores private (their ports are NOT
+# published to the host). Only the web (and, optionally, the API) are
+# exposed; put a reverse proxy with TLS in front of them.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# All secrets and config come from a real .env file (see .env.example).
+# Generate a strong JWT_SECRET_KEY, set real provider API keys, set
+# DEBUG=false, and set CORS_ORIGINS to your production domain. See DEPLOY.md.
+# ======================================================================
+
+name: doc-007-ai-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-doc007}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-doc007}
+    # No ports published - reachable only on the internal compose network.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-doc007} -d ${POSTGRES_DB:-doc007}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # No ports published.
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    # No ports published.
+    volumes:
+      - qdrantdata:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Reach the datastores by their compose service names.
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-doc007}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-doc007}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      QDRANT_URL: http://qdrant:6333
+    # Publish the API only if you want to reach it directly. If the reverse
+    # proxy and web both talk to it over the internal network you can drop
+    # this. Bind to localhost so it is not exposed on all interfaces.
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - uploads:/data/uploads
+    # Run migrations to completion, then start the production server.
+    command: >
+      sh -c "alembic upgrade head &&
+             gunicorn doc007.main:app
+             -k uvicorn.workers.UvicornWorker
+             -w 4 -b 0.0.0.0:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-doc007}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-doc007}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      QDRANT_URL: http://qdrant:6333
+    volumes:
+      - uploads:/data/uploads
+    # Production worker: default prefork pool (do NOT use --pool=solo on Linux).
+    command: celery -A doc007.workers.celery_app.celery_app worker --loglevel=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      api:
+        # Wait until the API has applied migrations and is healthy so the
+        # worker never races ahead of the schema.
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      # Production standalone runner (the Dockerfile's default final stage).
+      args:
+        # Baked into the client bundle at build time. Point this at the
+        # public URL your browser uses to reach the API (usually the same
+        # domain behind your reverse proxy, e.g. https://app.example.com/api).
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  redisdata:
+  qdrantdata:
+  uploads:
