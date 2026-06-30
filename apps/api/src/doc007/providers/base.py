@@ -10,6 +10,7 @@ Concrete implementations land in Phase 2/3.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
 
@@ -36,6 +37,11 @@ class LLMProvider(ABC):
 
     @abstractmethod
     async def complete(self, messages: list[ChatMessage], **kwargs) -> LLMResult: ...
+
+    @abstractmethod
+    def stream(self, messages: list[ChatMessage], **kwargs) -> AsyncIterator[str]:
+        """Yield answer text incrementally (token deltas)."""
+        ...
 
 
 class EmbeddingProvider(ABC):

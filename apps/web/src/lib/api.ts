@@ -2,6 +2,7 @@ import type {
   ApiKey,
   ApiKeyCreated,
   AskResponse,
+  AskStreamDone,
   AuditLog,
   Chunk,
   Conversation,
@@ -215,6 +216,47 @@ export const api = {
     workspaceId: string,
     payload: { question: string; conversation_id?: string; document_ids?: string[] },
   ) => request<AskResponse>(`/workspaces/${workspaceId}/chat/ask`, { method: "POST", body: payload }),
+  askStream: async (
+    workspaceId: string,
+    payload: { question: string; conversation_id?: string; document_ids?: string[] },
+    handlers: {
+      onToken: (text: string) => void;
+      onDone: (done: AskStreamDone) => void;
+      onError?: (message: string) => void;
+    },
+  ): Promise<void> => {
+    const token = useAuthStore.getState().accessToken;
+    const res = await fetch(`${BASE}${PREFIX}/workspaces/${workspaceId}/chat/ask/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok || !res.body) {
+      handlers.onError?.(res.status === 429 ? "Question limit reached." : `Request failed (${res.status})`);
+      return;
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const frames = buffer.split("\n\n");
+      buffer = frames.pop() ?? "";
+      for (const frame of frames) {
+        const dataLine = frame.split("\n").find((l) => l.startsWith("data: "));
+        if (!dataLine) continue;
+        const event = JSON.parse(dataLine.slice(6));
+        if (event.type === "token") handlers.onToken(event.text);
+        else if (event.type === "done") handlers.onDone(event as AskStreamDone);
+        else if (event.type === "error") handlers.onError?.(event.detail);
+      }
+    }
+  },
   submitFeedback: (
     workspaceId: string,
     messageId: string,

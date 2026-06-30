@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 
 from fastapi import APIRouter, Depends, Response, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from doc007.core.deps import (
@@ -31,7 +33,7 @@ from doc007.schemas.chat import (
     FeedbackRequest,
     MessageOut,
 )
-from doc007.services import audit_service, chat_service
+from doc007.services import audit_service, chat_service, usage_service, workspace_service
 
 router = APIRouter()
 
@@ -146,6 +148,59 @@ async def ask(
         citations=[_citation_from_answer(c) for c in result.citations],
         coverage=result.coverage,
         not_found=result.not_found,
+    )
+
+
+@router.post("/ask/stream")
+async def ask_stream(
+    payload: AskRequest,
+    membership: WorkspaceMember = Depends(get_membership),
+    db: AsyncSession = Depends(get_db),
+    embedder: EmbeddingProvider = Depends(get_embedder_dep),
+    llm: LLMProvider = Depends(get_llm_dep),
+    vector_store: VectorStore = Depends(get_vector_store_dep),
+) -> StreamingResponse:
+    # Validate up front so quota/not-found errors return real HTTP status codes
+    # before the stream starts.
+    workspace = await workspace_service.get_workspace(db, membership.workspace_id)
+    if workspace is not None:
+        await usage_service.check_question_quota(db, workspace)
+
+    if payload.conversation_id is not None:
+        conv = await chat_service.get_conversation(
+            db, membership.workspace_id, payload.conversation_id, membership.user_id
+        )
+        if conv is None:
+            raise NotFoundError("Conversation not found.")
+    else:
+        conv = await chat_service.create_conversation(
+            db,
+            workspace_id=membership.workspace_id,
+            user_id=membership.user_id,
+            title=payload.question[:80],
+        )
+
+    async def event_stream():
+        try:
+            async for event in chat_service.stream_ask(
+                db,
+                workspace_id=membership.workspace_id,
+                user_id=membership.user_id,
+                conversation=conv,
+                question=payload.question,
+                embedder=embedder,
+                llm=llm,
+                vector_store=vector_store,
+                document_ids=payload.document_ids,
+            ):
+                yield f"data: {json.dumps(event)}\n\n"
+        except Exception as exc:  # noqa: BLE001
+            yield f"data: {json.dumps({'type': 'error', 'detail': str(exc)})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 

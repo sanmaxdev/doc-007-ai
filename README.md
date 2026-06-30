@@ -31,7 +31,7 @@ It is built like a real SaaS, not a demo: multi-tenant workspaces with strict is
 | **Documents** | PDF / TXT / MD / DOCX upload, validation, tags, search + filters, reprocess, per-document chunk view |
 | **Ingestion** | Async `extract → clean → chunk → embed → store` with a live status state machine and graceful failure |
 | **Retrieval** | **Hybrid** — dense vectors (Qdrant) + lexical keywords, fused with Reciprocal Rank Fusion |
-| **Q&A** | Grounded answers with citations, a coverage indicator, conversation history, and a strict "not found" fallback |
+| **Q&A** | Grounded answers streamed token-by-token, with citations, a coverage indicator, conversation history, and a strict "not found" fallback |
 | **Debug / eval** | A retrieval view showing each chunk's dense / lexical / fused scores and the exact assembled prompt |
 | **Prompt safety** | Grounded system prompt; retrieved chunks are treated as untrusted data (prompt-injection defense) |
 | **Team** | Invitations, role management, audit logs, helpful / not-helpful feedback |
@@ -114,7 +114,7 @@ uploaded → extracting → chunking → embedding → ready          (any failu
 
 **Retrieval** is hybrid. A dense vector search (semantic) and a lexical keyword scan (exact terms, names, IDs a dense model can miss) run in parallel and are merged with **Reciprocal Rank Fusion**. A query is answered only when there is a strong semantic match *or* a literal keyword match — otherwise the system refuses rather than hallucinate.
 
-**Answering** — the question is embedded, retrieval runs, and a guardrail decides whether to proceed. If it does, retrieved chunks are wrapped in a `<context>` block (marked as untrusted reference data) and sent with a grounded system prompt. The model must cite sources with `[n]` markers, which are mapped back to documents for the citation cards.
+**Answering** — the question is embedded, retrieval runs, and a guardrail decides whether to proceed. If it does, retrieved chunks are wrapped in a `<context>` block (marked as untrusted reference data) and sent with a grounded system prompt. The answer streams back token-by-token over Server-Sent Events, and the model must cite sources with `[n]` markers, which are mapped back to documents for the citation cards.
 
 The **Retrieval debug** page exposes all of this: the ranked chunks, their dense / lexical / fused scores, and the exact prompt that would be sent — without calling the LLM.
 
@@ -167,7 +167,8 @@ Coverage includes the security-critical **workspace isolation** tests, the inges
 - [x] **Phase 4** — Invitations, role management, audit logs, tags, answer feedback
 - [x] **Phase 5** — Hybrid retrieval + a RAG debug/eval view + document detail
 - [x] **Phase 6** — Public API, API keys, rate limiting, usage quotas
-- [ ] **Phase 7** — Streaming answers, advanced analytics, SSO
+- [x] **Phase 7** — Streaming answers (token-by-token over SSE)
+- [ ] **Next** — Advanced analytics, SSO
 
 ## License
 

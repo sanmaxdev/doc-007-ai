@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from typing import Any
 
 from doc007.core.config import settings
@@ -44,6 +45,11 @@ class MockLLMProvider(LLMProvider):
             completion_tokens=len(content.split()),
         )
 
+    async def stream(self, messages: list[ChatMessage], **kwargs) -> AsyncIterator[str]:
+        result = await self.complete(messages, **kwargs)
+        for word in result.content.split():
+            yield word + " "
+
 
 class OpenRouterLLMProvider(LLMProvider):
     def __init__(self, *, api_key: str, base_url: str, model: str) -> None:
@@ -76,6 +82,21 @@ class OpenRouterLLMProvider(LLMProvider):
             )
 
         return await _call()
+
+    async def stream(self, messages: list[ChatMessage], **kwargs) -> AsyncIterator[str]:
+        payload: list[Any] = [{"role": m.role, "content": m.content} for m in messages]
+        stream = await self._client.chat.completions.create(
+            model=self._model,
+            messages=payload,
+            temperature=kwargs.get("temperature", 0.1),
+            stream=True,
+        )
+        async for chunk in stream:
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
 
 
 def get_llm_provider() -> LLMProvider:

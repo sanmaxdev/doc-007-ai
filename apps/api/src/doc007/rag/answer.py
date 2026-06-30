@@ -44,7 +44,7 @@ class AnswerResult:
     latency_ms: int = 0
 
 
-def _coverage(chunks: list[RetrievedChunk], cited: int) -> str:
+def coverage(chunks: list[RetrievedChunk], cited: int) -> str:
     if not chunks or cited == 0:
         return "none"
     top = max((c.score for c in chunks), default=0.0)
@@ -53,6 +53,29 @@ def _coverage(chunks: list[RetrievedChunk], cited: int) -> str:
     if top >= 0.4:
         return "medium"
     return "low"
+
+
+def build_citations(answer: str, chunks: list[RetrievedChunk]) -> list[Citation]:
+    """Map [n] markers in the answer back to retrieved chunks."""
+    cited_indexes = sorted(
+        {int(m) for m in _CITATION_RE.findall(answer) if 1 <= int(m) <= len(chunks)}
+    )
+    citations: list[Citation] = []
+    for rank, idx in enumerate(cited_indexes):
+        c = chunks[idx - 1]
+        citations.append(
+            Citation(
+                index=idx,
+                document_id=c.document_id,
+                document_filename=c.document_filename,
+                page_number=c.page_number,
+                snippet=c.content[:_SNIPPET_LEN],
+                score=c.score,
+                chunk_id=c.chunk_id,
+                rank=rank,
+            )
+        )
+    return citations
 
 
 async def generate_answer(
@@ -90,31 +113,14 @@ async def generate_answer(
     answer = result.content.strip()
     model_said_not_found = answer.lower().startswith("i couldn't find")
 
-    cited_indexes = sorted(
-        {int(m) for m in _CITATION_RE.findall(answer) if 1 <= int(m) <= len(chunks)}
-    )
-    citations: list[Citation] = []
-    for rank, idx in enumerate(cited_indexes):
-        c = chunks[idx - 1]
-        citations.append(
-            Citation(
-                index=idx,
-                document_id=c.document_id,
-                document_filename=c.document_filename,
-                page_number=c.page_number,
-                snippet=c.content[:_SNIPPET_LEN],
-                score=c.score,
-                chunk_id=c.chunk_id,
-                rank=rank,
-            )
-        )
+    citations = build_citations(answer, chunks)
 
     return AnswerResult(
         answer=answer,
         citations=citations,
         retrieved=chunks,
         not_found=model_said_not_found,
-        coverage=_coverage(chunks, len(citations)),
+        coverage=coverage(chunks, len(citations)),
         model=result.model,
         tokens_prompt=result.prompt_tokens,
         tokens_completion=result.completion_tokens,

@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Send, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -8,12 +9,12 @@ import { CitationCard } from "@/components/chat/citation-card";
 import { CoverageBadge } from "@/components/chat/coverage-badge";
 import { Button } from "@/components/ui/button";
 import {
-  useAsk,
   useConversation,
   useConversations,
   useDeleteConversation,
   useSubmitFeedback,
 } from "@/hooks/use-chat";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { ChatMessage, FeedbackRating } from "@/lib/types";
 import { useWorkspaceStore } from "@/stores/workspace";
@@ -91,10 +92,13 @@ export default function ChatPage() {
   const [coverageByMsg, setCoverageByMsg] = useState<Record<string, string>>({});
 
   const [feedbackByMsg, setFeedbackByMsg] = useState<Record<string, FeedbackRating>>({});
+  const [pending, setPending] = useState<{ question: string; answer: string } | null>(null);
+  const [streaming, setStreaming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  const queryClient = useQueryClient();
   const { data: conversations } = useConversations(workspaceId);
   const { data: detail } = useConversation(workspaceId, activeId);
-  const ask = useAsk(workspaceId);
   const del = useDeleteConversation(workspaceId);
   const feedback = useSubmitFeedback(workspaceId);
 
@@ -126,11 +130,33 @@ export default function ChatPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const q = question.trim();
-    if (!q || ask.isPending) return;
+    if (!q || streaming || !workspaceId) return;
     setQuestion("");
-    const res = await ask.mutateAsync({ question: q, conversation_id: activeId ?? undefined });
-    setActiveId(res.conversation_id);
-    setCoverageByMsg((prev) => ({ ...prev, [res.message_id]: res.coverage }));
+    setError(null);
+    setPending({ question: q, answer: "" });
+    setStreaming(true);
+    await api.askStream(
+      workspaceId,
+      { question: q, conversation_id: activeId ?? undefined },
+      {
+        onToken: (t) => setPending((p) => (p ? { ...p, answer: p.answer + t } : p)),
+        onDone: (d) => {
+          setCoverageByMsg((prev) => ({ ...prev, [d.message_id]: d.coverage }));
+          setActiveId(d.conversation_id);
+          setPending(null);
+          setStreaming(false);
+          queryClient.invalidateQueries({ queryKey: ["conversations", workspaceId] });
+          queryClient.invalidateQueries({
+            queryKey: ["conversation", workspaceId, d.conversation_id],
+          });
+        },
+        onError: (msg) => {
+          setError(msg);
+          setPending(null);
+          setStreaming(false);
+        },
+      },
+    );
   }
 
   const messages = detail?.messages ?? [];
@@ -178,7 +204,7 @@ export default function ChatPage() {
 
       <div className="flex flex-1 flex-col rounded-lg border border-border bg-card">
         <div className="flex-1 space-y-6 overflow-y-auto p-6">
-          {messages.length === 0 && !ask.isPending ? (
+          {messages.length === 0 && !pending ? (
             <div className="flex h-full flex-col items-center justify-center text-center">
               <p className="text-lg font-medium">Ask your documents</p>
               <p className="text-sm text-muted-foreground">
@@ -192,13 +218,37 @@ export default function ChatPage() {
                 message={m}
                 coverage={coverageByMsg[m.id]}
                 rating={feedbackByMsg[m.id]}
-                onRate={
-                  m.role === "assistant" ? (r) => rate(m.id, r) : undefined
-                }
+                onRate={m.role === "assistant" ? (r) => rate(m.id, r) : undefined}
               />
             ))
           )}
-          {ask.isPending && <div className="text-sm text-muted-foreground">Thinking…</div>}
+          {pending && (
+            <>
+              <MessageBubble
+                message={{
+                  id: "pending-user",
+                  role: "user",
+                  content: pending.question,
+                  created_at: "",
+                  citations: [],
+                }}
+              />
+              {pending.answer ? (
+                <MessageBubble
+                  message={{
+                    id: "pending-assistant",
+                    role: "assistant",
+                    content: pending.answer,
+                    created_at: "",
+                    citations: [],
+                  }}
+                />
+              ) : (
+                <div className="text-sm text-muted-foreground">Thinking…</div>
+              )}
+            </>
+          )}
+          {error && <div className="text-sm text-destructive">{error}</div>}
         </div>
 
         <form onSubmit={submit} className="flex gap-2 border-t border-border p-4">
@@ -208,7 +258,7 @@ export default function ChatPage() {
             placeholder="Ask a question about your documents…"
             className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
-          <Button type="submit" disabled={ask.isPending || !question.trim()}>
+          <Button type="submit" disabled={streaming || !question.trim()}>
             <Send className="h-4 w-4" />
             Ask
           </Button>

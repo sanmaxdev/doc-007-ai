@@ -180,6 +180,15 @@ export type AskResponse = {
   not_found: boolean;
 };
 
+export type AskStreamDone = {
+  type: "done";
+  conversation_id: string;
+  message_id: string;
+  citations: Citation[];
+  coverage: string;
+  not_found: boolean;
+};
+
 export type RetrievedChunk = {
   chunk_id: string;
   document_id: string;

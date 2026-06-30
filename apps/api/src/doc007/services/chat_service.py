@@ -2,19 +2,25 @@
 
 from __future__ import annotations
 
+import time
 import uuid
+from collections.abc import AsyncIterator
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from doc007.core.config import settings
 from doc007.core.exceptions import NotFoundError, ValidationError
 from doc007.db.models.conversation import Citation, Conversation, Message, MessageRole
 from doc007.db.models.feedback import Feedback, FeedbackRating
 from doc007.db.models.usage import UsageEventType
 from doc007.db.models.workspace import Workspace
 from doc007.providers.base import ChatMessage, EmbeddingProvider, LLMProvider
-from doc007.rag.answer import AnswerResult, generate_answer
+from doc007.rag.answer import AnswerResult, build_citations, coverage, generate_answer
+from doc007.rag.answer import Citation as AnswerCitation
+from doc007.rag.prompt import NOT_FOUND, build_messages
+from doc007.rag.retrieval import RetrievedChunk, passes_guardrail, retrieve
 from doc007.rag.vector_store import VectorStore
 from doc007.services import usage_service
 
@@ -162,15 +168,52 @@ async def ask(
         document_ids=document_ids,
     )
 
-    db.add(Message(conversation_id=conv.id, role=MessageRole.user, content=question))
-    assistant = Message(
-        conversation_id=conv.id,
-        role=MessageRole.assistant,
-        content=result.answer,
+    assistant = await _persist_turn(
+        db,
+        conversation=conv,
+        question=question,
+        answer=result.answer,
+        retrieved=result.retrieved,
+        citations=result.citations,
         model=result.model,
-        tokens_prompt=result.tokens_prompt,
-        tokens_completion=result.tokens_completion,
+        tokens_in=result.tokens_prompt,
+        tokens_out=result.tokens_completion,
         latency_ms=result.latency_ms,
+    )
+    await usage_service.record(
+        db,
+        workspace_id=workspace_id,
+        user_id=user_id,
+        event_type=UsageEventType.question,
+        source=source,
+        tokens_in=result.tokens_prompt,
+        tokens_out=result.tokens_completion,
+    )
+    return conv, assistant, result
+
+
+async def _persist_turn(
+    db: AsyncSession,
+    *,
+    conversation: Conversation,
+    question: str,
+    answer: str,
+    retrieved: list[RetrievedChunk],
+    citations: list[AnswerCitation],
+    model: str,
+    tokens_in: int,
+    tokens_out: int,
+    latency_ms: int,
+) -> Message:
+    db.add(Message(conversation_id=conversation.id, role=MessageRole.user, content=question))
+    assistant = Message(
+        conversation_id=conversation.id,
+        role=MessageRole.assistant,
+        content=answer,
+        model=model or None,
+        tokens_prompt=tokens_in,
+        tokens_completion=tokens_out,
+        latency_ms=latency_ms,
         retrieval={
             "retrieved": [
                 {
@@ -179,14 +222,13 @@ async def ask(
                     "page_number": c.page_number,
                     "score": c.score,
                 }
-                for c in result.retrieved
+                for c in retrieved
             ]
         },
     )
     db.add(assistant)
     await db.flush()
-
-    for c in result.citations:
+    for c in citations:
         db.add(
             Citation(
                 message_id=assistant.id,
@@ -199,17 +241,121 @@ async def ask(
                 rank=c.rank,
             )
         )
-
     await db.commit()
     await db.refresh(assistant)
+    return assistant
 
+
+async def stream_ask(
+    db: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+    conversation: Conversation,
+    question: str,
+    embedder: EmbeddingProvider,
+    llm: LLMProvider,
+    vector_store: VectorStore,
+    document_ids: list[uuid.UUID] | None = None,
+    source: str = "app",
+) -> AsyncIterator[dict]:
+    """Yield token/done events while streaming an answer.
+
+    The caller resolves the conversation and checks the quota first (so those
+    can return normal HTTP errors); this generator runs retrieval, streams the
+    answer, then persists the turn and records usage.
+    """
+    history = await _history(db, conversation.id)
+    chunks = await retrieve(
+        db,
+        workspace_id=workspace_id,
+        query=question,
+        embedder=embedder,
+        vector_store=vector_store,
+        top_k=settings.retrieval_top_k,
+        document_ids=document_ids,
+    )
+
+    if not passes_guardrail(chunks):
+        yield {"type": "token", "text": NOT_FOUND}
+        message = await _persist_turn(
+            db,
+            conversation=conversation,
+            question=question,
+            answer=NOT_FOUND,
+            retrieved=chunks,
+            citations=[],
+            model="",
+            tokens_in=0,
+            tokens_out=0,
+            latency_ms=0,
+        )
+        await usage_service.record(
+            db,
+            workspace_id=workspace_id,
+            user_id=user_id,
+            event_type=UsageEventType.question,
+            source=source,
+        )
+        yield {
+            "type": "done",
+            "conversation_id": str(conversation.id),
+            "message_id": str(message.id),
+            "citations": [],
+            "coverage": "none",
+            "not_found": True,
+        }
+        return
+
+    messages = build_messages(question, chunks, history)
+    parts: list[str] = []
+    started = time.monotonic()
+    async for token in llm.stream(messages):
+        parts.append(token)
+        yield {"type": "token", "text": token}
+
+    answer = "".join(parts).strip()
+    latency_ms = int((time.monotonic() - started) * 1000)
+    citations = build_citations(answer, chunks)
+    tokens_in = sum(len(m.content.split()) for m in messages)
+    tokens_out = len(answer.split())
+
+    message = await _persist_turn(
+        db,
+        conversation=conversation,
+        question=question,
+        answer=answer,
+        retrieved=chunks,
+        citations=citations,
+        model=llm.name,
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
+        latency_ms=latency_ms,
+    )
     await usage_service.record(
         db,
         workspace_id=workspace_id,
         user_id=user_id,
         event_type=UsageEventType.question,
         source=source,
-        tokens_in=result.tokens_prompt,
-        tokens_out=result.tokens_completion,
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
     )
-    return conv, assistant, result
+    yield {
+        "type": "done",
+        "conversation_id": str(conversation.id),
+        "message_id": str(message.id),
+        "citations": [
+            {
+                "index": c.index,
+                "document_id": c.document_id,
+                "document_filename": c.document_filename,
+                "page_number": c.page_number,
+                "snippet": c.snippet,
+                "score": c.score,
+            }
+            for c in citations
+        ],
+        "coverage": coverage(chunks, len(citations)),
+        "not_found": answer.lower().startswith("i couldn't find"),
+    }
