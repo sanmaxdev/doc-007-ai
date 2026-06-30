@@ -55,6 +55,14 @@ export function useUsage(workspaceId: string | null) {
   });
 }
 
+export function useAnalytics(workspaceId: string | null) {
+  return useQuery({
+    queryKey: ["analytics", workspaceId],
+    queryFn: () => api.getAnalytics(workspaceId as string),
+    enabled: Boolean(workspaceId),
+  });
+}
+
 export function useDeleteWorkspace() {
   const queryClient = useQueryClient();
   return useMutation({

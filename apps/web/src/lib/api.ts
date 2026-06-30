@@ -1,4 +1,5 @@
 import type {
+  Analytics,
   ApiKey,
   ApiKeyCreated,
   AskResponse,
@@ -127,6 +128,7 @@ export const api = {
     request<void>(`/workspaces/${id}/api-keys/${keyId}`, { method: "DELETE" }),
 
   getUsage: (id: string) => request<UsageSummary>(`/workspaces/${id}/usage`),
+  getAnalytics: (id: string) => request<Analytics>(`/workspaces/${id}/analytics`),
 
   listMembers: (id: string) => request<Member[]>(`/workspaces/${id}/members`),
   changeMemberRole: (id: string, userId: string, role: Role) =>

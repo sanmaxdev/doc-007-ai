@@ -50,6 +50,30 @@ export type UsageSummary = {
   questions_by_day: UsageByDay[];
 };
 
+export type TopDocument = {
+  document_id: string | null;
+  filename: string;
+  citations: number;
+};
+
+export type AnalyticsQuestion = {
+  question: string;
+  answered: boolean;
+  created_at: string;
+};
+
+export type Analytics = {
+  total_questions: number;
+  answered: number;
+  unanswered: number;
+  answer_rate: number;
+  feedback_helpful: number;
+  feedback_not_helpful: number;
+  top_documents: TopDocument[];
+  recent_questions: AnalyticsQuestion[];
+  unanswered_questions: AnalyticsQuestion[];
+};
+
 export type Member = {
   user_id: string;
   email: string;

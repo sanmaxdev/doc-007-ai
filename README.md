@@ -3,7 +3,7 @@
 # DOC-007-AI
 
 **A multi-tenant AI knowledge base for businesses.**
-Upload your documents, ask questions in plain language, and get answers that are grounded in — and cited from — your own sources.
+Upload your documents, ask questions in plain language, and get answers that are grounded in (and cited from) your own sources.
 
 [![CI](https://github.com/sanmaxdev/doc-007-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/sanmaxdev/doc-007-ai/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
@@ -18,25 +18,26 @@ Upload your documents, ask questions in plain language, and get answers that are
 
 ## Overview
 
-Teams drown in documents, and generic chatbots make things up. DOC-007-AI is a production-style **RAG** platform that answers questions **only** from a workspace's own documents and cites every claim — document, page, and snippet. If the answer isn't there, it says so instead of guessing.
+Teams drown in documents, and generic chatbots make things up. DOC-007-AI is a production-style **RAG** platform that answers questions using only a workspace's own documents and cites every claim with its document, page, and snippet. If the answer isn't there, it says so instead of guessing.
 
-It is built like a real SaaS, not a demo: multi-tenant workspaces with strict isolation, role-based access, an asynchronous ingestion pipeline with a visible status machine, hybrid retrieval with an inspectable debug view, a swappable AI-provider layer, and a rate-limited public API with usage quotas.
+It is built like a real SaaS, not a demo: multi-tenant workspaces with strict isolation, role-based access, an asynchronous ingestion pipeline with a visible status machine, hybrid retrieval with an inspectable debug view, a swappable AI-provider layer, a rate-limited public API with usage quotas, and workspace analytics.
 
 ## Highlights
 
 | Area | What's inside |
 |---|---|
 | **Auth & RBAC** | JWT (access + refresh), argon2 hashing, owner / admin / member roles, email invitations |
-| **Isolation** | Enforced at the SQL layer *and* the vector store; cross-tenant requests return `404`, not `403` |
-| **Documents** | PDF / TXT / MD / DOCX upload, validation, tags, search + filters, reprocess, per-document chunk view |
-| **Ingestion** | Async `extract → clean → chunk → embed → store` with a live status state machine and graceful failure |
-| **Retrieval** | **Hybrid** — dense vectors (Qdrant) + lexical keywords, fused with Reciprocal Rank Fusion |
+| **Isolation** | Enforced at the SQL layer and the vector store. Cross-tenant requests return `404`, not `403` |
+| **Documents** | PDF / TXT / MD / DOCX upload, validation, tags, search and filters, reprocess, per-document chunk view |
+| **Ingestion** | Async `extract, clean, chunk, embed, store` with a live status state machine and graceful failure |
+| **Retrieval** | Hybrid: dense vectors (Qdrant) plus lexical keywords, fused with Reciprocal Rank Fusion |
 | **Q&A** | Grounded answers streamed token-by-token, with citations, a coverage indicator, conversation history, and a strict "not found" fallback |
-| **Debug / eval** | A retrieval view showing each chunk's dense / lexical / fused scores and the exact assembled prompt |
-| **Prompt safety** | Grounded system prompt; retrieved chunks are treated as untrusted data (prompt-injection defense) |
+| **Debug / eval** | A retrieval view showing each chunk's dense, lexical, and fused scores and the exact assembled prompt |
+| **Prompt safety** | Grounded system prompt. Retrieved chunks are treated as untrusted data (prompt-injection defense) |
 | **Team** | Invitations, role management, audit logs, helpful / not-helpful feedback |
 | **Public API** | `/api/public/v1` authenticated by API keys, rate-limited per key |
-| **Usage & quotas** | A usage ledger (tokens + cost) and an enforceable monthly question limit per workspace |
+| **Usage & quotas** | A usage ledger (tokens and cost) and an enforceable monthly question limit per workspace |
+| **Analytics** | Answer rate, knowledge gaps, most-cited documents, and feedback trends |
 | **Ops** | One `docker compose up`, Alembic migrations, GitHub Actions CI |
 
 ## Architecture
@@ -54,12 +55,12 @@ flowchart LR
   EMB --> Q
   W --> PG
   API -->|hybrid retrieve · workspace-filtered| Q
-  API -->|grounded prompt| LLM[OpenRouter LLM]
+  API -->|grounded prompt · streamed| LLM[OpenRouter LLM]
   LLM --> API
   API -->|answer + citations| U
 ```
 
-Layering is enforced on the backend: thin routers → services (business logic) → `rag/` (extraction · chunking · embeddings · vector store · retrieval · prompt · answer) and `providers/` (LLM + embeddings). No business logic or model calls live in routers.
+Layering is enforced on the backend. Thin routers call services (business logic), which call `rag/` (extraction, chunking, embeddings, vector store, retrieval, prompt, answer) and `providers/` (LLM and embeddings). No business logic or model calls live in routers.
 
 ## Tech stack
 
@@ -69,8 +70,8 @@ Layering is enforced on the backend: thin routers → services (business logic) 
 | Backend | FastAPI, SQLAlchemy 2.0 (async), Alembic, Pydantic v2 |
 | Data | PostgreSQL 16, Qdrant (`VECTOR_DIM=1536`), Redis |
 | Jobs | Celery + Redis |
-| AI | OpenRouter (LLM), OpenAI `text-embedding-3-small` (embeddings) — both swappable, both with deterministic mocks |
-| Infra | Docker Compose, GitHub Actions (ruff · mypy · pytest · eslint · tsc · build) |
+| AI | OpenRouter (LLM) and OpenAI `text-embedding-3-small` (embeddings). Both swappable, both with deterministic mocks |
+| Infra | Docker Compose, GitHub Actions (ruff, mypy, pytest, eslint, tsc, build) |
 
 ## Screenshots
 
@@ -82,7 +83,7 @@ Layering is enforced on the backend: thin routers → services (business logic) 
 
 ## Getting started
 
-**Prerequisites:** Docker + Docker Compose.
+**Prerequisites:** Docker and Docker Compose.
 
 ```bash
 # 1. Configure
@@ -106,21 +107,21 @@ Register, create a workspace, upload a document, watch it reach **Ready**, then 
 
 ## How it works
 
-**Ingestion** — an upload is validated, stored, and recorded as `uploaded`, then a Celery job runs the pipeline and persists the status at each step so the UI can follow along:
+**Ingestion.** An upload is validated, stored, and recorded as `uploaded`, then a Celery job runs the pipeline and persists the status at each step so the UI can follow along:
 
 ```
 uploaded → extracting → chunking → embedding → ready          (any failure → failed, with the reason)
 ```
 
-**Retrieval** is hybrid. A dense vector search (semantic) and a lexical keyword scan (exact terms, names, IDs a dense model can miss) run in parallel and are merged with **Reciprocal Rank Fusion**. A query is answered only when there is a strong semantic match *or* a literal keyword match — otherwise the system refuses rather than hallucinate.
+**Retrieval is hybrid.** A dense vector search (semantic) and a lexical keyword scan (exact terms, names, and IDs a dense model can miss) run in parallel and are merged with Reciprocal Rank Fusion. A query is answered only when there is a strong semantic match or a literal keyword match, otherwise the system refuses rather than hallucinate.
 
-**Answering** — the question is embedded, retrieval runs, and a guardrail decides whether to proceed. If it does, retrieved chunks are wrapped in a `<context>` block (marked as untrusted reference data) and sent with a grounded system prompt. The answer streams back token-by-token over Server-Sent Events, and the model must cite sources with `[n]` markers, which are mapped back to documents for the citation cards.
+**Answering.** The question is embedded, retrieval runs, and a guardrail decides whether to proceed. If it does, retrieved chunks are wrapped in a `<context>` block (marked as untrusted reference data) and sent with a grounded system prompt. The answer streams back token-by-token over Server-Sent Events, and the model must cite sources with `[n]` markers, which are mapped back to documents for the citation cards.
 
-The **Retrieval debug** page exposes all of this: the ranked chunks, their dense / lexical / fused scores, and the exact prompt that would be sent — without calling the LLM.
+The **Retrieval debug** page exposes all of this: the ranked chunks, their dense, lexical, and fused scores, and the exact prompt that would be sent, all without calling the LLM. The **Analytics** page turns the conversation history into answer rate, knowledge gaps (questions with no grounded answer), most-cited documents, and feedback trends.
 
 ## Public API
 
-A separate, API-key-authenticated surface at `/api/public/v1`, rate-limited per key. Create keys in **Settings** (admin only); only a hash is stored and the raw key is shown once.
+A separate, API-key-authenticated surface at `/api/public/v1`, rate-limited per key. Create keys in **Settings** (admin only). Only a hash is stored and the raw key is shown once.
 
 ```bash
 KEY="doc7_..."   # created in the dashboard
@@ -139,36 +140,36 @@ curl -s http://localhost:8000/api/public/v1/ask \
   -d '{"question":"How many vacation days do we get?"}'
 ```
 
-Every question is recorded in a usage ledger (prompt/completion tokens + estimated cost) and counts toward the workspace's monthly question limit, which is enforced before any tokens are spent.
+Every question is recorded in a usage ledger (prompt and completion tokens plus estimated cost) and counts toward the workspace's monthly question limit, which is enforced before any tokens are spent.
 
 ## Security
 
 - **Tenant isolation** at three layers: workspace-scoped SQL, a mandatory `workspace_id` filter on every Qdrant search, and per-request membership checks that return `404` so existence isn't leaked.
-- **Prompt-injection defense** — retrieved document text is treated as data, never as instructions.
-- **Secrets** — passwords hashed with argon2id; API keys and invitation tokens stored only as SHA-256 hashes and shown once; provider keys are server-side only.
-- **Abuse controls** — per-key rate limiting (Redis, fails open) and per-workspace question quotas.
-- **Audit trail** — uploads, deletes, invites, role changes, and key lifecycle are recorded.
+- **Prompt-injection defense.** Retrieved document text is treated as data, never as instructions.
+- **Secrets.** Passwords hashed with argon2id. API keys and invitation tokens stored only as SHA-256 hashes and shown once. Provider keys are server-side only.
+- **Abuse controls.** Per-key rate limiting (Redis, fails open) and per-workspace question quotas.
+- **Audit trail.** Uploads, deletes, invites, role changes, and key lifecycle are recorded.
 
 ## Testing
 
 ```bash
-cd apps/api && pytest                 # 60 tests
+cd apps/api && pytest                 # 57 tests
 cd apps/web && npm run lint && npm run typecheck && npm run build
 ```
 
-Coverage includes the security-critical **workspace isolation** tests, the ingestion pipeline, hybrid retrieval and the not-found guardrail, RBAC and invitations, the public API and rate limiter, and quota enforcement.
+Coverage includes the security-critical **workspace isolation** tests, the ingestion pipeline, hybrid retrieval and the not-found guardrail, RBAC and invitations, the public API and rate limiter, quota enforcement, streaming answers, and analytics.
 
 ## Roadmap
 
-- [x] **Phase 0** — Foundation (monorepo, Docker, CI, healthchecks)
-- [x] **Phase 1** — Auth + workspaces + RBAC
-- [x] **Phase 2** — Documents + async ingestion pipeline
-- [x] **Phase 3** — RAG Q&A with citations
-- [x] **Phase 4** — Invitations, role management, audit logs, tags, answer feedback
-- [x] **Phase 5** — Hybrid retrieval + a RAG debug/eval view + document detail
-- [x] **Phase 6** — Public API, API keys, rate limiting, usage quotas
-- [x] **Phase 7** — Streaming answers (token-by-token over SSE)
-- [ ] **Next** — Advanced analytics, SSO
+- [x] **Phase 0:** Foundation (monorepo, Docker, CI, healthchecks)
+- [x] **Phase 1:** Auth, workspaces, RBAC
+- [x] **Phase 2:** Documents and the async ingestion pipeline
+- [x] **Phase 3:** RAG Q&A with citations
+- [x] **Phase 4:** Invitations, role management, audit logs, tags, answer feedback
+- [x] **Phase 5:** Hybrid retrieval, a RAG debug/eval view, document detail
+- [x] **Phase 6:** Public API, API keys, rate limiting, usage quotas
+- [x] **Phase 7:** Streaming answers and workspace analytics
+- [ ] **Next:** SSO
 
 ## License
 

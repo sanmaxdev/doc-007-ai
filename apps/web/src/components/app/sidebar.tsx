@@ -5,6 +5,7 @@ import {
   FileText,
   FlaskConical,
   LayoutDashboard,
+  LineChart,
   MessagesSquare,
   Settings,
   Users,
@@ -20,6 +21,7 @@ const NAV = [
   { href: "/chat", label: "Chat", icon: MessagesSquare, soon: false },
   { href: "/debug", label: "Retrieval", icon: FlaskConical, soon: false },
   { href: "/usage", label: "Usage", icon: BarChart3, soon: false },
+  { href: "/analytics", label: "Analytics", icon: LineChart, soon: false },
   { href: "/members", label: "Members", icon: Users, soon: false },
   { href: "/settings", label: "Settings", icon: Settings, soon: false },
 ];
