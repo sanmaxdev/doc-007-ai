@@ -38,12 +38,19 @@ async def create_conversation(
 
 
 async def list_conversations(
-    db: AsyncSession, workspace_id: uuid.UUID, user_id: uuid.UUID
+    db: AsyncSession,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+    *,
+    limit: int = 50,
+    offset: int = 0,
 ) -> list[Conversation]:
     result = await db.execute(
         select(Conversation)
         .where(Conversation.workspace_id == workspace_id, Conversation.user_id == user_id)
         .order_by(Conversation.updated_at.desc())
+        .limit(limit)
+        .offset(offset)
     )
     return list(result.scalars().all())
 

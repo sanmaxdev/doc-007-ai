@@ -22,9 +22,15 @@ def _normalize(name: str) -> str:
     return cleaned
 
 
-async def list_tags(db: AsyncSession, workspace_id: uuid.UUID) -> list[Tag]:
+async def list_tags(
+    db: AsyncSession, workspace_id: uuid.UUID, *, limit: int = 200, offset: int = 0
+) -> list[Tag]:
     result = await db.execute(
-        select(Tag).where(Tag.workspace_id == workspace_id).order_by(Tag.name.asc())
+        select(Tag)
+        .where(Tag.workspace_id == workspace_id)
+        .order_by(Tag.name.asc())
+        .limit(limit)
+        .offset(offset)
     )
     return list(result.scalars().all())
 

@@ -30,11 +30,15 @@ async def create_key(
     return key, raw
 
 
-async def list_keys(db: AsyncSession, workspace_id: uuid.UUID) -> list[ApiKey]:
+async def list_keys(
+    db: AsyncSession, workspace_id: uuid.UUID, *, limit: int = 100, offset: int = 0
+) -> list[ApiKey]:
     result = await db.execute(
         select(ApiKey)
         .where(ApiKey.workspace_id == workspace_id)
         .order_by(ApiKey.created_at.desc())
+        .limit(limit)
+        .offset(offset)
     )
     return list(result.scalars().all())
 

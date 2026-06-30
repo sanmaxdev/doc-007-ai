@@ -90,7 +90,7 @@ async def list_memberships_for_user(
 
 
 async def list_members(
-    db: AsyncSession, workspace_id: uuid.UUID
+    db: AsyncSession, workspace_id: uuid.UUID, *, limit: int = 100, offset: int = 0
 ) -> list[WorkspaceMember]:
     result = await db.execute(
         select(WorkspaceMember)
@@ -100,6 +100,8 @@ async def list_members(
         )
         .options(selectinload(WorkspaceMember.user))
         .order_by(WorkspaceMember.joined_at.asc())
+        .limit(limit)
+        .offset(offset)
     )
     return list(result.scalars().all())
 
@@ -244,7 +246,7 @@ async def create_invitation(
 
 
 async def list_invitations(
-    db: AsyncSession, workspace_id: uuid.UUID
+    db: AsyncSession, workspace_id: uuid.UUID, *, limit: int = 100, offset: int = 0
 ) -> list[Invitation]:
     result = await db.execute(
         select(Invitation)
@@ -253,6 +255,8 @@ async def list_invitations(
             Invitation.status == InvitationStatus.pending,
         )
         .order_by(Invitation.created_at.desc())
+        .limit(limit)
+        .offset(offset)
     )
     return list(result.scalars().all())
 

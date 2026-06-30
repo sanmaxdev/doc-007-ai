@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import uuid
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -71,11 +71,13 @@ def _message_out(m: Message) -> MessageOut:
 
 @router.get("/conversations", response_model=list[ConversationOut])
 async def list_conversations(
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     membership: WorkspaceMember = Depends(get_membership),
     db: AsyncSession = Depends(get_db),
 ) -> list[ConversationOut]:
     convs = await chat_service.list_conversations(
-        db, membership.workspace_id, membership.user_id
+        db, membership.workspace_id, membership.user_id, limit=limit, offset=offset
     )
     return [ConversationOut.model_validate(c) for c in convs]
 

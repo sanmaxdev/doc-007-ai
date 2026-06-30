@@ -63,11 +63,19 @@ async def list_documents(
     status_filter: DocumentStatus | None = None,
     search: str | None = Query(default=None, max_length=255),
     tag_id: uuid.UUID | None = None,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     membership: WorkspaceMember = Depends(get_membership),
     db: AsyncSession = Depends(get_db),
 ) -> list[DocumentOut]:
     docs = await document_service.list_documents(
-        db, membership.workspace_id, status=status_filter, search=search, tag_id=tag_id
+        db,
+        membership.workspace_id,
+        status=status_filter,
+        search=search,
+        tag_id=tag_id,
+        limit=limit,
+        offset=offset,
     )
     return [DocumentOut.model_validate(d) for d in docs]
 
@@ -110,13 +118,17 @@ async def reprocess_document(
 @router.get("/{document_id}/chunks", response_model=list[ChunkOut])
 async def get_document_chunks(
     document_id: uuid.UUID,
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     membership: WorkspaceMember = Depends(get_membership),
     db: AsyncSession = Depends(get_db),
 ) -> list[ChunkOut]:
     doc = await document_service.get_document(db, membership.workspace_id, document_id)
     if doc is None:
         raise NotFoundError("Document not found.")
-    chunks = await document_service.list_chunks(db, membership.workspace_id, document_id)
+    chunks = await document_service.list_chunks(
+        db, membership.workspace_id, document_id, limit=limit, offset=offset
+    )
     return [ChunkOut.model_validate(c) for c in chunks]
 
 

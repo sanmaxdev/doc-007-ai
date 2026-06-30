@@ -4,21 +4,25 @@ from __future__ import annotations
 
 import secrets
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from doc007.core.deps import get_current_user
+from doc007.core import token_blocklist
+from doc007.core.deps import enforce_auth_rate_limit, get_access_payload, get_current_user
 from doc007.core.exceptions import UnauthorizedError
 from doc007.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    token_ttl_seconds,
 )
 from doc007.db.base import get_db
 from doc007.db.models.user import User
 from doc007.schemas.auth import (
     LoginRequest,
+    LogoutRequest,
     OAuthAuthorizeRequest,
     OAuthAuthorizeResponse,
     OAuthCallbackRequest,
@@ -41,24 +45,39 @@ def _tokens_for(user: User) -> TokenResponse:
     )
 
 
-@router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    response_model=UserOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(enforce_auth_rate_limit)],
+)
 async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)) -> User:
     return await auth_service.register_user(
         db, email=data.email, password=data.password, full_name=data.full_name
     )
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    dependencies=[Depends(enforce_auth_rate_limit)],
+)
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
     user = await auth_service.authenticate(db, email=data.email, password=data.password)
     return _tokens_for(user)
 
 
-@router.post("/refresh", response_model=TokenResponse)
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    dependencies=[Depends(enforce_auth_rate_limit)],
+)
 async def refresh(data: RefreshRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
     payload = decode_token(data.refresh_token)
     if not payload or payload.get("type") != "refresh":
         raise UnauthorizedError("Invalid refresh token.")
+    if await token_blocklist.is_revoked(str(payload.get("jti", ""))):
+        raise UnauthorizedError("Refresh token has been revoked.")
     try:
         user_id = uuid.UUID(str(payload.get("sub")))
     except (ValueError, TypeError):
@@ -67,13 +86,23 @@ async def refresh(data: RefreshRequest, db: AsyncSession = Depends(get_db)) -> T
     user = await auth_service.get_user_by_id(db, user_id)
     if user is None or not user.is_active:
         raise UnauthorizedError("User not found or inactive.")
+
+    # Rotate: the presented refresh token is single-use and is revoked here.
+    await token_blocklist.revoke(str(payload.get("jti", "")), token_ttl_seconds(payload))
     return _tokens_for(user)
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
-async def logout(_: User = Depends(get_current_user)) -> dict:
-    # Stateless JWT: the client discards its tokens. A server-side
-    # revocation list can be added later if needed.
+async def logout(
+    data: LogoutRequest | None = None,
+    payload: dict[str, Any] = Depends(get_access_payload),
+) -> dict:
+    # Revoke the current access token, and the refresh token if the client sends it.
+    await token_blocklist.revoke(str(payload.get("jti", "")), token_ttl_seconds(payload))
+    if data and data.refresh_token:
+        rp = decode_token(data.refresh_token)
+        if rp and rp.get("type") == "refresh":
+            await token_blocklist.revoke(str(rp.get("jti", "")), token_ttl_seconds(rp))
     return {"detail": "Logged out."}
 
 

@@ -10,7 +10,7 @@ Please report security issues privately rather than opening a public issue. Use 
 
 **Tenant isolation.** Every workspace-scoped database query filters by `workspace_id`, and every vector search sends a mandatory server-side `workspace_id` payload filter to Qdrant that is never controlled by the client. Retrieved chunks are re-checked against the workspace when they are hydrated from the database. Membership is verified on every request, and a request for a workspace you do not belong to returns `404` rather than `403`, so the existence of other tenants is not leaked. Client-supplied document ids are intersected with the workspace filter, so an id from another tenant simply returns nothing.
 
-**Authentication and access control.** Passwords are hashed with argon2id. Authentication uses short-lived JWT access tokens with longer-lived refresh tokens, and the frontend transparently refreshes on expiry. Google and GitHub SSO are supported. Roles (owner, admin, member) are enforced on every mutating endpoint, and sensitive actions (member and key management, workspace settings, deletion) require the appropriate role.
+**Authentication and access control.** Passwords are hashed with argon2id. Authentication uses short-lived JWT access tokens with longer-lived refresh tokens, and the frontend transparently refreshes on expiry. Logout and refresh both revoke tokens through a Redis-backed denylist: refresh tokens are single-use and rotated on every refresh, so a stolen or logged-out token stops working immediately. The authentication endpoints are rate-limited per IP to slow credential stuffing. Google and GitHub SSO are supported. Roles (owner, admin, member) are enforced on every mutating endpoint, and sensitive actions (member and key management, workspace settings, deletion) require the appropriate role.
 
 **Secrets.** API keys and invitation tokens are stored only as SHA-256 hashes and the raw value is shown exactly once. AI provider keys are server-side only and are never exposed to the browser. The `.env` file is gitignored.
 
@@ -25,8 +25,6 @@ Please report security issues privately rather than opening a public issue. Use 
 This is a portfolio project, and the following defense-in-depth items are tracked as deliberate next steps:
 
 - **PostgreSQL Row-Level Security** as a database-level backstop beneath the application-level workspace scoping.
-- **Refresh-token rotation and a revocation list** so that logout and credential compromise invalidate tokens immediately.
-- **Rate limiting and lockout on the authentication endpoints** to slow credential-stuffing.
 - **Security headers** (CSP, HSTS, X-Frame-Options, X-Content-Type-Options) via middleware.
 - **Streaming upload limits and extraction caps** to bound memory use on very large or adversarial files.
 - **OAuth `state` validation and a redirect-URI allowlist** to fully close login-CSRF vectors.

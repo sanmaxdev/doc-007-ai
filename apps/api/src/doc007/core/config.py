@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     api_key_prefix: str = "doc7"
     public_rate_limit: int = 60  # requests allowed per window, per API key
     public_rate_window_seconds: int = 60
+    # Per-IP limit for auth endpoints (login/register/refresh), to slow brute force.
+    auth_rate_limit: int = 10
+    auth_rate_window_seconds: int = 60
     # Rough cost estimate per 1k tokens (USD) for the usage ledger.
     cost_per_1k_input_tokens: float = 0.00015
     cost_per_1k_output_tokens: float = 0.0006

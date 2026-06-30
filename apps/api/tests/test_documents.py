@@ -96,3 +96,24 @@ async def test_upload_rejects_unsupported_type(client: AsyncClient, overrides: d
     files = {"file": ("malware.exe", b"MZ\x90\x00", "application/octet-stream")}
     r = await client.post(f"{API}/workspaces/{wid}/documents", files=files, headers=h)
     assert r.status_code == 400
+
+
+async def test_document_list_pagination(client: AsyncClient, overrides: dict) -> None:
+    h = await register_and_login(client, "page@example.com")
+    wid = await _new_workspace(client, h)
+    for i in range(3):
+        files = {"file": (f"doc{i}.txt", b"some content for the document", "text/plain")}
+        up = await client.post(f"{API}/workspaces/{wid}/documents", files=files, headers=h)
+        assert up.status_code == 201
+
+    first = await client.get(f"{API}/workspaces/{wid}/documents?limit=2", headers=h)
+    assert first.status_code == 200
+    assert len(first.json()) == 2
+
+    rest = await client.get(f"{API}/workspaces/{wid}/documents?limit=2&offset=2", headers=h)
+    assert rest.status_code == 200
+    assert len(rest.json()) == 1
+
+    # limit is capped, so an out-of-range value is rejected
+    bad = await client.get(f"{API}/workspaces/{wid}/documents?limit=999", headers=h)
+    assert bad.status_code == 422

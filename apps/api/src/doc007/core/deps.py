@@ -5,11 +5,14 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
-from fastapi import Depends, Path
+from fastapi import Depends, Path, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from doc007.core import token_blocklist
+from doc007.core.config import settings
 from doc007.core.exceptions import (
     ForbiddenError,
     NotFoundError,
@@ -28,17 +31,25 @@ from doc007.storage.base import Storage
 _bearer = HTTPBearer(auto_error=False)
 
 
-async def get_current_user(
+async def get_access_payload(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
-    db: AsyncSession = Depends(get_db),
-) -> User:
+) -> dict[str, Any]:
+    """Decode and validate the bearer access token, rejecting revoked ones."""
     if credentials is None:
         raise UnauthorizedError("Not authenticated.")
 
     payload = decode_token(credentials.credentials)
     if not payload or payload.get("type") != "access":
         raise UnauthorizedError("Invalid or expired token.")
+    if await token_blocklist.is_revoked(str(payload.get("jti", ""))):
+        raise UnauthorizedError("Token has been revoked.")
+    return payload
 
+
+async def get_current_user(
+    payload: dict[str, Any] = Depends(get_access_payload),
+    db: AsyncSession = Depends(get_db),
+) -> User:
     try:
         user_id = uuid.UUID(str(payload.get("sub")))
     except (ValueError, TypeError):
@@ -48,6 +59,20 @@ async def get_current_user(
     if user is None or not user.is_active:
         raise UnauthorizedError("User not found or inactive.")
     return user
+
+
+async def enforce_auth_rate_limit(request: Request) -> None:
+    """Per-IP rate limit for the auth endpoints, to slow credential stuffing."""
+    from doc007.core.rate_limit import enforce
+
+    ip = request.client.host if request.client else "unknown"
+    allowed = await enforce(
+        key=f"auth:{ip}",
+        limit=settings.auth_rate_limit,
+        window_seconds=settings.auth_rate_window_seconds,
+    )
+    if not allowed:
+        raise RateLimitedError("Too many attempts. Please wait a moment and try again.")
 
 
 async def get_membership(

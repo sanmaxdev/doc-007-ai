@@ -23,6 +23,11 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class LogoutRequest(BaseModel):
+    # Optional: pass the refresh token so it is revoked too, not just the access token.
+    refresh_token: str | None = None
+
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str

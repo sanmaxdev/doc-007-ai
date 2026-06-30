@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from doc007.core.deps import require_role
@@ -43,10 +43,12 @@ async def create_api_key(
 
 @router.get("", response_model=list[ApiKeyOut])
 async def list_api_keys(
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     membership: WorkspaceMember = Depends(_ADMIN),
     db: AsyncSession = Depends(get_db),
 ) -> list[ApiKeyOut]:
-    keys = await apikey_service.list_keys(db, membership.workspace_id)
+    keys = await apikey_service.list_keys(db, membership.workspace_id, limit=limit, offset=offset)
     return [ApiKeyOut.model_validate(k) for k in keys]
 
 

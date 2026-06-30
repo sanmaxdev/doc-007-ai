@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 import doc007.db.models  # noqa: F401  (register models on Base.metadata)
+from doc007.core.deps import enforce_auth_rate_limit
 from doc007.db.base import Base, get_db
 from doc007.main import app
 
@@ -43,6 +44,10 @@ async def client(db_engine) -> AsyncGenerator[AsyncClient, None]:
             yield session
 
     app.dependency_overrides[get_db] = _override_get_db
+    # The per-IP auth rate limit shares one key across the whole test run; disable
+    # it here so it does not trip. The fixed-window mechanism it uses is covered by
+    # test_public_api.test_rate_limit_window.
+    app.dependency_overrides[enforce_auth_rate_limit] = lambda: None
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac

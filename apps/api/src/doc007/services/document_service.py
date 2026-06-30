@@ -84,6 +84,8 @@ async def list_documents(
     status: DocumentStatus | None = None,
     search: str | None = None,
     tag_id: uuid.UUID | None = None,
+    limit: int = 50,
+    offset: int = 0,
 ) -> list[Document]:
     stmt = select(Document).where(Document.workspace_id == workspace_id)
     if status is not None:
@@ -94,7 +96,7 @@ async def list_documents(
         stmt = stmt.join(DocumentTag, DocumentTag.document_id == Document.id).where(
             DocumentTag.tag_id == tag_id
         )
-    stmt = stmt.order_by(Document.created_at.desc())
+    stmt = stmt.order_by(Document.created_at.desc()).limit(limit).offset(offset)
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
@@ -111,7 +113,12 @@ async def get_document(
 
 
 async def list_chunks(
-    db: AsyncSession, workspace_id: uuid.UUID, document_id: uuid.UUID
+    db: AsyncSession,
+    workspace_id: uuid.UUID,
+    document_id: uuid.UUID,
+    *,
+    limit: int = 100,
+    offset: int = 0,
 ) -> list[DocumentChunk]:
     result = await db.execute(
         select(DocumentChunk)
@@ -120,6 +127,8 @@ async def list_chunks(
             DocumentChunk.workspace_id == workspace_id,
         )
         .order_by(DocumentChunk.chunk_index.asc())
+        .limit(limit)
+        .offset(offset)
     )
     return list(result.scalars().all())
 

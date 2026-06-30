@@ -109,7 +109,11 @@ export const api = {
       body: { email, password },
     }),
   me: () => request<User>("/auth/me"),
-  logout: () => request<{ detail: string }>("/auth/logout", { method: "POST" }),
+  logout: () =>
+    request<{ detail: string }>("/auth/logout", {
+      method: "POST",
+      body: { refresh_token: useAuthStore.getState().refreshToken },
+    }),
   oauthProviders: () =>
     request<{ providers: string[] }>("/auth/oauth/providers", { auth: false }),
   oauthAuthorize: (provider: string, redirectUri: string) =>

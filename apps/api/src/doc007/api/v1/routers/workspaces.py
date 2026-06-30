@@ -120,10 +120,12 @@ async def delete_workspace(
 
 @router.get("/{workspace_id}/tags", response_model=list[TagOut])
 async def list_tags(
+    limit: int = Query(default=200, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
     membership: WorkspaceMember = Depends(get_membership),
     db: AsyncSession = Depends(get_db),
 ) -> list[TagOut]:
-    tags = await tag_service.list_tags(db, membership.workspace_id)
+    tags = await tag_service.list_tags(db, membership.workspace_id, limit=limit, offset=offset)
     return [TagOut.model_validate(t) for t in tags]
 
 
@@ -132,10 +134,14 @@ async def list_tags(
 
 @router.get("/{workspace_id}/members", response_model=list[MemberOut])
 async def list_members(
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     membership: WorkspaceMember = Depends(get_membership),
     db: AsyncSession = Depends(get_db),
 ) -> list[MemberOut]:
-    members = await workspace_service.list_members(db, membership.workspace_id)
+    members = await workspace_service.list_members(
+        db, membership.workspace_id, limit=limit, offset=offset
+    )
     return [
         MemberOut(
             user_id=m.user_id,
@@ -243,10 +249,14 @@ async def create_invitation(
 
 @router.get("/{workspace_id}/invitations", response_model=list[InvitationOut])
 async def list_invitations(
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     membership: WorkspaceMember = Depends(_ADMIN),
     db: AsyncSession = Depends(get_db),
 ) -> list[InvitationOut]:
-    invitations = await workspace_service.list_invitations(db, membership.workspace_id)
+    invitations = await workspace_service.list_invitations(
+        db, membership.workspace_id, limit=limit, offset=offset
+    )
     return [InvitationOut.model_validate(i) for i in invitations]
 
 

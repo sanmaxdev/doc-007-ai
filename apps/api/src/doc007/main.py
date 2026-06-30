@@ -20,10 +20,26 @@ from doc007.core.logging import configure_logging, get_logger
 
 log = get_logger(__name__)
 
+_DEV_ENVS = {"development", "dev", "local", "test", "testing"}
+
+
+def _check_production_safety() -> None:
+    """Refuse to boot with insecure defaults outside development."""
+    if settings.environment.lower() in _DEV_ENVS:
+        return
+    if settings.jwt_secret_key in {"", "change-me"} or len(settings.jwt_secret_key) < 32:
+        raise RuntimeError(
+            "JWT_SECRET_KEY must be set to a strong value (at least 32 characters) "
+            "when ENVIRONMENT is not a development environment."
+        )
+    if settings.debug:
+        raise RuntimeError("DEBUG must be disabled outside development.")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging()
+    _check_production_safety()
     log.info("startup", app=settings.app_name, environment=settings.environment)
     yield
     log.info("shutdown")
@@ -52,6 +68,15 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=exc.status_code,
             content={"detail": exc.message, "code": exc.code},
+        )
+
+    @app.exception_handler(Exception)
+    async def _unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
+        # Log the real error server-side; never leak internals to the client.
+        log.error("unhandled_exception", path=request.url.path, error=str(exc))
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error.", "code": "internal_error"},
         )
 
     # Root-level probes (used by Docker/k8s healthchecks)
