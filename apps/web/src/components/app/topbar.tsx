@@ -3,6 +3,7 @@
 import { LogOut } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 
+import { MobileNav } from "@/components/app/mobile-nav";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,8 @@ export function Topbar() {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-md">
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <MobileNav />
         <WorkspaceSwitcher />
         {section && (
           <span className="hidden items-center gap-3 sm:flex">

@@ -208,7 +208,8 @@ export default function DocumentsPage() {
         </Card>
       ) : (
         <Card className="overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="border-b border-border bg-secondary/40 text-left font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
@@ -283,6 +284,7 @@ export default function DocumentsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </Card>
       )}
 

@@ -179,7 +179,8 @@ export default function MembersPage() {
       )}
 
       <Card className="overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[480px] text-sm">
           <thead className="border-b border-border bg-secondary/40 text-left font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">Member</th>
@@ -245,6 +246,7 @@ export default function MembersPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </Card>
 
       {isAdmin && invitations && invitations.length > 0 && (

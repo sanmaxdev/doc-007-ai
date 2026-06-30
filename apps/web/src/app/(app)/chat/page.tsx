@@ -230,6 +230,30 @@ export default function ChatPage() {
       </aside>
 
       <div className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
+        <div className="flex items-center gap-2 border-b border-border p-2.5 md:hidden">
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={() => setActiveId(null)}
+          >
+            <Plus className="h-4 w-4" />
+            New
+          </Button>
+          <select
+            value={activeId ?? ""}
+            onChange={(e) => setActiveId(e.target.value || null)}
+            className="h-9 min-w-0 flex-1 truncate rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Switch conversation"
+          >
+            <option value="">New conversation</option>
+            {(conversations ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title || "Untitled"}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="flex-1 space-y-6 overflow-y-auto p-6">
           {messages.length === 0 && !pending ? (
             <div className="flex h-full flex-col items-center justify-center text-center">
